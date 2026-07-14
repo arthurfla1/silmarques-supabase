@@ -1,0 +1,1080 @@
+import React, { useState } from 'react';
+import { Plus, Edit2, Trash2, Search, CheckCircle2, Circle, DollarSign, Clock, AlertTriangle, Package, ShoppingCart, Apple, Check, Sparkles, Car, Wrench, Shield, FileText, Award, Users, Phone, Mail, BarChart3, Download, MapPin, Receipt } from 'lucide-react';
+import { contasApi, estoqueApi, comprasApi, limpezaApi, veiculosApi, documentosApi, patrimonioApi, authApi, dashboardApi } from '../api/db';
+import { useApiList } from '../hooks/useApiList';
+import { useFamilia } from '../context/contexts';
+import { Card, SectionHeader, Btn, Input, Select, Field, Modal, TextArea, Badge, IconBtn, EmptyState, Metric, ProgressBar, Avatar, LoadingScreen, ErrorBanner, FileUploader } from '../components/ui';
+import { CONTA_CATEGORIAS, ESTOQUE_CATEGORIAS, ESTOQUE_LOCAIS, LIMPEZA_AMBIENTES, LIMPEZA_FREQ, LIMPEZA_PRIORIDADES, VEICULO_CATEGORIAS, DOC_CATEGORIAS, BEM_CATEGORIAS, COMPRA_UNIDADES, MERCADO_CATEGORIAS, PERMISSOES, FEIRA_ITENS, CAR_BRANDS, fmtMoney, fmtDate, todayStr, addDays, daysUntil, downloadCSV } from '../lib/constants';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, CartesianGrid, LineChart, Line } from 'recharts';
+
+const COLORS = ['#D32F2F','#1565C0','#2E7D32','#B8740A','#6A4C93','#00897B'];
+
+// ── helpers ────────────────────────────────────────────────────────────────
+function useCRUD(api) {
+  const list = useApiList(api.list.bind(api));
+  const [saving, setSaving] = useState(false);
+  const [actionError, setActionError] = useState('');
+
+  const save = async (payload, id) => {
+    setSaving(true); setActionError('');
+    try {
+      if (id) {
+        const updated = await api.update(id, payload);
+        list.setData(list.data.map(x => x.id === id ? updated : x));
+      } else {
+        const created = await api.create(payload);
+        list.setData([created, ...list.data]);
+      }
+      return true;
+    } catch (e) { setActionError(e.message); return false; }
+    finally { setSaving(false); }
+  };
+
+  const remove = async (id) => {
+    try { await api.remove(id); list.setData(list.data.filter(x => x.id !== id)); }
+    catch (e) { setActionError(e.message); }
+  };
+
+  return { ...list, saving, actionError, save, remove };
+}
+
+// ── CONTAS ─────────────────────────────────────────────────────────────────
+const statusOf = (c) => {
+  if (c.status === 'paga') return 'paga';
+  const d = daysUntil(c.vencimento);
+  return d < 0 ? 'vencida' : d <= 3 ? 'proxima' : 'pendente';
+};
+const STATUS_INFO = { paga:{l:'Paga',t:'green'}, vencida:{l:'Vencida',t:'red'}, proxima:{l:'Próx. vencimento',t:'amber'}, pendente:{l:'Pendente',t:'neutral'} };
+
+export function ContasPage() {
+  const { data:contas, setData:setContas, loading, error, reload, saving, actionError, save, remove } = useCRUD(contasApi);
+  const { familia } = useFamilia();
+  const [modal, setModal] = useState(null);
+  const [filtro, setFiltro] = useState('todas');
+  const [busca, setBusca] = useState('');
+
+  if (loading) return <LoadingScreen label="Carregando contas..."/>;
+  if (error) return <ErrorBanner message={error} onRetry={reload}/>;
+
+  const lista = [...contas].filter(c => {
+    if (busca && !c.descricao.toLowerCase().includes(busca.toLowerCase())) return false;
+    return filtro === 'todas' || statusOf(c) === filtro;
+  }).sort((a,b) => new Date(a.vencimento)-new Date(b.vencimento));
+
+  const total = contas.reduce((s,c)=>s+Number(c.valor),0);
+  const pago = contas.filter(c=>c.status==='paga').reduce((s,c)=>s+Number(c.valor),0);
+  const pendente = contas.filter(c=>c.status!=='paga').reduce((s,c)=>s+Number(c.valor),0);
+  const vencido = contas.filter(c=>c.status!=='paga'&&daysUntil(c.vencimento)<0).reduce((s,c)=>s+Number(c.valor),0);
+
+  const porCat = CONTA_CATEGORIAS.map(cat=>({ categoria:cat, valor:contas.filter(c=>c.categoria===cat).reduce((s,c)=>s+Number(c.valor),0) })).filter(c=>c.valor>0).sort((a,b)=>b.valor-a.valor);
+
+  const togglePaga = async (c) => {
+    const updated = await contasApi.update(c.id, { status: c.status==='paga'?'pendente':'paga' });
+    setContas(contas.map(x=>x.id===c.id?updated:x));
+  };
+
+  const handleSave = async (payload) => {
+    const ok = await save(payload, modal?.id);
+    if (ok) setModal(null);
+  };
+
+  return (
+    <div className="fadein">
+      <SectionHeader title="Contas da casa" subtitle="Vencimentos, pagamentos e gastos por categoria."
+        action={<Btn icon={Plus} onClick={()=>setModal({})}>Nova conta</Btn>}/>
+      {actionError && <ErrorBanner message={actionError}/>}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(150px,1fr))', gap:12, marginBottom:16 }}>
+        <Metric icon={DollarSign} label="Total do mês" value={fmtMoney(total)}/>
+        <Metric icon={CheckCircle2} label="Pago" value={fmtMoney(pago)} tone="green"/>
+        <Metric icon={Clock} label="Pendente" value={fmtMoney(pendente)} tone="amber"/>
+        <Metric icon={AlertTriangle} label="Vencido" value={fmtMoney(vencido)} tone="red"/>
+      </div>
+      {porCat.length>0 && (
+        <Card style={{ marginBottom:16 }}>
+          <div style={{ fontWeight:600, fontSize:14, marginBottom:12 }}>Gastos por categoria</div>
+          {porCat.map(c=>(
+            <div key={c.categoria} style={{ marginBottom:10 }}>
+              <div style={{ display:'flex', justifyContent:'space-between', fontSize:13, marginBottom:4 }}><span>{c.categoria}</span><span style={{ fontWeight:600 }}>{fmtMoney(c.valor)}</span></div>
+              <ProgressBar value={c.valor} max={porCat[0].valor}/>
+            </div>
+          ))}
+        </Card>
+      )}
+      <div style={{ display:'flex', gap:8, marginBottom:14, flexWrap:'wrap', alignItems:'center' }}>
+        <div style={{ position:'relative', flex:'1 1 200px' }}>
+          <Search size={16} style={{ position:'absolute', left:12, top:12, color:'var(--sm-text-faint)' }}/>
+          <Input placeholder="Buscar conta..." value={busca} onChange={e=>setBusca(e.target.value)} style={{ paddingLeft:36 }}/>
+        </div>
+        {['todas','vencida','proxima','pendente','paga'].map(f=>(
+          <button key={f} onClick={()=>setFiltro(f)} style={{ padding:'8px 14px', borderRadius:999, fontSize:13, fontWeight:600, border:'1px solid var(--sm-border)', background:filtro===f?'var(--sm-red)':'transparent', color:filtro===f?'#fff':'var(--sm-text-soft)', cursor:'pointer' }}>{f==='todas'?'Todas':STATUS_INFO[f].l}</button>
+        ))}
+      </div>
+      {lista.length===0 ? <EmptyState icon={Receipt} title="Nenhuma conta encontrada"/> : (
+        <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+          {lista.map(c=>{
+            const st=statusOf(c);
+            return (
+              <Card key={c.id} style={{ display:'flex', alignItems:'center', gap:12, flexWrap:'wrap' }}>
+                <button onClick={()=>togglePaga(c)} style={{ background:'transparent', border:'none', color:c.status==='paga'?'var(--sm-green)':'var(--sm-text-faint)', display:'flex', cursor:'pointer' }}>
+                  {c.status==='paga'?<CheckCircle2 size={24}/>:<Circle size={24}/>}
+                </button>
+                <div style={{ flex:'1 1 180px', minWidth:0 }}>
+                  <div style={{ fontWeight:600, fontSize:14.5, textDecoration:c.status==='paga'?'line-through':'none', color:c.status==='paga'?'var(--sm-text-faint)':'var(--sm-text)' }}>{c.descricao}</div>
+                  <div style={{ fontSize:12.5, color:'var(--sm-text-soft)', marginTop:2 }}>{c.categoria} · {c.forma||'—'} · {c.responsavel||'—'}</div>
+                </div>
+                <Badge tone={STATUS_INFO[st].t}>{STATUS_INFO[st].l}</Badge>
+                <div style={{ textAlign:'right', minWidth:90 }}>
+                  <div style={{ fontWeight:700, fontFamily:'Outfit', fontSize:15 }}>{fmtMoney(c.valor)}</div>
+                  <div style={{ fontSize:12, color:'var(--sm-text-soft)' }}>{fmtDate(c.vencimento)}</div>
+                </div>
+                <div style={{ display:'flex', gap:6 }}>
+                  <IconBtn icon={Edit2} onClick={()=>setModal(c)}/>
+                  <IconBtn icon={Trash2} tone="red" onClick={()=>remove(c.id)}/>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+      {modal!==null && (
+        <Modal title={modal.id?'Editar conta':'Nova conta'} onClose={()=>setModal(null)}>
+          <ContaForm conta={modal.id?modal:null} familia={familia} saving={saving} onSave={handleSave} onClose={()=>setModal(null)}/>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+function ContaForm({ conta, familia, saving, onSave, onClose }) {
+  const [form, setForm] = useState(conta?{ descricao:conta.descricao, categoria:conta.categoria, valor:conta.valor, vencimento:conta.vencimento, responsavel:conta.responsavel||'', forma:conta.forma||'Boleto', status:conta.status }:{ descricao:'', categoria:CONTA_CATEGORIAS[0], valor:'', vencimento:addDays(7), responsavel:familia[0]?.nome||'', forma:'Boleto', status:'pendente' });
+  const set=(k,v)=>setForm(f=>({...f,[k]:v}));
+  return (
+    <form onSubmit={e=>{e.preventDefault();onSave({...form,valor:Number(form.valor)});}} style={{ display:'flex', flexDirection:'column', gap:14 }}>
+      <Field label="Descrição"><Input required value={form.descricao} onChange={e=>set('descricao',e.target.value)} placeholder="Ex: Conta de luz"/></Field>
+      <div className="grid-2">
+        <Field label="Categoria"><Select value={form.categoria} onChange={e=>set('categoria',e.target.value)}>{CONTA_CATEGORIAS.map(c=><option key={c}>{c}</option>)}</Select></Field>
+        <Field label="Valor (R$)"><Input required type="number" step="0.01" min="0" value={form.valor} onChange={e=>set('valor',e.target.value)}/></Field>
+      </div>
+      <div className="grid-2">
+        <Field label="Vencimento"><Input required type="date" value={form.vencimento} onChange={e=>set('vencimento',e.target.value)}/></Field>
+        <Field label="Forma"><Select value={form.forma} onChange={e=>set('forma',e.target.value)}>{['Boleto','Débito automático','Cartão','Pix','Dinheiro'].map(f=><option key={f}>{f}</option>)}</Select></Field>
+      </div>
+      <Field label="Responsável"><Select value={form.responsavel} onChange={e=>set('responsavel',e.target.value)}><option value="">—</option>{familia.map(m=><option key={m.id} value={m.nome}>{m.nome}</option>)}</Select></Field>
+      <label style={{ display:'flex', alignItems:'center', gap:8, fontSize:14 }}><input type="checkbox" checked={form.status==='paga'} onChange={e=>set('status',e.target.checked?'paga':'pendente')}/> Marcar como paga</label>
+      <div style={{ display:'flex', justifyContent:'flex-end', gap:10, marginTop:6 }}>
+        <Btn variant="secondary" onClick={onClose}>Cancelar</Btn>
+        <Btn type="submit" disabled={saving}>{saving?'Salvando...':'Salvar'}</Btn>
+      </div>
+    </form>
+  );
+}
+
+// ── ESTOQUE ────────────────────────────────────────────────────────────────
+export function EstoquePage() {
+  const { data:estoque, setData, loading, error, reload, saving, actionError, save, remove } = useCRUD(estoqueApi);
+  const [modal, setModal] = useState(null);
+  const [busca, setBusca] = useState('');
+  const [filtroCat, setFiltroCat] = useState('todas');
+  const [filtroLocal, setFiltroLocal] = useState('todos');
+  const [alertaOnly, setAlertaOnly] = useState(false);
+
+  if (loading) return <LoadingScreen label="Carregando estoque..."/>;
+  if (error) return <ErrorBanner message={error} onRetry={reload}/>;
+
+  const itensFalta = estoque.filter(i=>Number(i.quantidade)<=Number(i.minimo));
+  const itensVencendo = estoque.filter(i=>{const d=daysUntil(i.validade);return d!==null&&d>=0&&d<=5;});
+  const itensVencidos = estoque.filter(i=>daysUntil(i.validade)<0);
+  const valorTotal = estoque.reduce((s,i)=>s+Number(i.valor)*Number(i.quantidade),0);
+
+  const lista = estoque.filter(i=>{
+    if (busca&&!i.nome.toLowerCase().includes(busca.toLowerCase())) return false;
+    if (filtroCat!=='todas'&&i.categoria!==filtroCat) return false;
+    if (filtroLocal!=='todos'&&i.local!==filtroLocal) return false;
+    if (alertaOnly) return Number(i.quantidade)<=Number(i.minimo)||(i.validade&&daysUntil(i.validade)<=5);
+    return true;
+  });
+
+  const adjustQty = async (item, delta) => {
+    const qty = Math.max(0,+(Number(item.quantidade)+delta).toFixed(2));
+    const updated = await estoqueApi.update(item.id,{quantidade:qty});
+    setData(estoque.map(x=>x.id===item.id?updated:x));
+  };
+
+  const addToList = async (item) => {
+    await comprasApi.create({ produto:item.nome, categoria:item.categoria, quantidade:Math.max(Number(item.minimo)-Number(item.quantidade),1), unidade:item.unidade, tipo:'mercado', comprado:false, observacoes:'Reposição automática' });
+  };
+
+  const handleSave = async (payload) => { if (await save(payload, modal?.id)) setModal(null); };
+
+  return (
+    <div className="fadein">
+      <SectionHeader title="Estoque doméstico" subtitle="Controle produtos, validade e reposição automática." action={<Btn icon={Plus} onClick={()=>setModal({})}>Novo item</Btn>}/>
+      {actionError && <ErrorBanner message={actionError}/>}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(150px,1fr))', gap:12, marginBottom:16 }}>
+        <Metric icon={Package} label="Itens" value={estoque.length}/>
+        <Metric icon={DollarSign} label="Valor em estoque" value={fmtMoney(valorTotal)}/>
+        <Metric icon={AlertTriangle} label="Em falta" value={itensFalta.length} tone={itensFalta.length?'amber':'green'}/>
+        <Metric icon={Clock} label="Vencendo/vencido" value={itensVencendo.length+itensVencidos.length} tone={(itensVencendo.length+itensVencidos.length)?'red':'green'}/>
+      </div>
+      {(itensFalta.length>0||itensVencendo.length>0||itensVencidos.length>0) && (
+        <Card style={{ marginBottom:16 }}>
+          <div style={{ fontWeight:600, fontSize:14, marginBottom:10 }}>Sugestões de reposição</div>
+          {itensVencidos.map(i=><div key={i.id} style={{ display:'flex', justifyContent:'space-between', fontSize:13, padding:'6px 0', borderBottom:'1px solid var(--sm-border)' }}><span><Badge tone="red">vencido</Badge> {i.nome}</span></div>)}
+          {itensVencendo.map(i=><div key={i.id} style={{ display:'flex', justifyContent:'space-between', fontSize:13, padding:'6px 0', borderBottom:'1px solid var(--sm-border)' }}><span><Badge tone="amber">vence em {daysUntil(i.validade)}d</Badge> {i.nome}</span></div>)}
+          {itensFalta.map(i=><div key={i.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:8, fontSize:13, padding:'6px 0', borderBottom:'1px solid var(--sm-border)' }}>
+            <span><Badge tone="amber">em falta</Badge> {i.nome} ({i.quantidade}/{i.minimo} {i.unidade})</span>
+            <Btn variant="secondary" style={{ padding:'5px 10px', fontSize:12 }} icon={ShoppingCart} onClick={()=>addToList(i)}>Add à lista</Btn>
+          </div>)}
+        </Card>
+      )}
+      <div style={{ display:'flex', gap:8, marginBottom:14, flexWrap:'wrap', alignItems:'center' }}>
+        <div style={{ position:'relative', flex:'1 1 180px' }}><Search size={16} style={{ position:'absolute', left:12, top:12, color:'var(--sm-text-faint)' }}/><Input placeholder="Buscar..." value={busca} onChange={e=>setBusca(e.target.value)} style={{ paddingLeft:36 }}/></div>
+        <Select value={filtroCat} onChange={e=>setFiltroCat(e.target.value)} style={{ width:'auto' }}><option value="todas">Todas categorias</option>{ESTOQUE_CATEGORIAS.map(c=><option key={c}>{c}</option>)}</Select>
+        <Select value={filtroLocal} onChange={e=>setFiltroLocal(e.target.value)} style={{ width:'auto' }}><option value="todos">Todos locais</option>{ESTOQUE_LOCAIS.map(l=><option key={l}>{l}</option>)}</Select>
+        <button onClick={()=>setAlertaOnly(!alertaOnly)} style={{ padding:'8px 14px', borderRadius:999, fontSize:13, fontWeight:600, border:'1px solid var(--sm-border)', background:alertaOnly?'var(--sm-red)':'transparent', color:alertaOnly?'#fff':'var(--sm-text-soft)', cursor:'pointer', display:'flex', alignItems:'center', gap:6 }}><AlertTriangle size={14}/> Alertas</button>
+      </div>
+      {lista.length===0 ? <EmptyState icon={Package} title="Nenhum item encontrado"/> : (
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(260px,1fr))', gap:12 }}>
+          {lista.map(i=>{
+            const baixo=Number(i.quantidade)<=Number(i.minimo);
+            const dVal=i.validade?daysUntil(i.validade):null;
+            return (
+              <Card key={i.id}>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:8 }}>
+                  <div><div style={{ fontWeight:600, fontSize:14.5 }}>{i.nome}</div><div style={{ fontSize:12.5, color:'var(--sm-text-soft)' }}>{i.marca||'—'} · {i.categoria}</div></div>
+                  <div style={{ display:'flex', gap:4 }}><IconBtn icon={Edit2} onClick={()=>setModal(i)}/><IconBtn icon={Trash2} tone="red" onClick={()=>remove(i.id)}/></div>
+                </div>
+                <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:8 }}>
+                  <button onClick={()=>adjustQty(i,-1)} style={{ width:28, height:28, borderRadius:8, border:'1px solid var(--sm-border)', background:'var(--sm-bg)', fontSize:16, fontWeight:700, cursor:'pointer' }}>−</button>
+                  <span style={{ fontWeight:700, fontFamily:'Outfit', fontSize:16, minWidth:50, textAlign:'center' }}>{Number(i.quantidade)} {i.unidade}</span>
+                  <button onClick={()=>adjustQty(i,1)} style={{ width:28, height:28, borderRadius:8, border:'1px solid var(--sm-border)', background:'var(--sm-bg)', fontSize:16, fontWeight:700, cursor:'pointer' }}>+</button>
+                  {baixo && <Badge tone="amber">mín. {Number(i.minimo)}</Badge>}
+                </div>
+                <div style={{ display:'flex', justifyContent:'space-between', fontSize:12.5, color:'var(--sm-text-soft)' }}>
+                  <span><MapPin size={12} style={{ verticalAlign:-2, marginRight:3 }}/>{i.local}</span>
+                  {i.validade ? <Badge tone={dVal<0?'red':dVal<=5?'amber':'neutral'}>{dVal<0?'vencido':`val. ${fmtDate(i.validade)}`}</Badge> : <span>sem validade</span>}
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+      {modal!==null && (
+        <Modal title={modal.id?'Editar item':'Novo item'} onClose={()=>setModal(null)}>
+          <EstoqueForm item={modal.id?modal:null} saving={saving} onSave={handleSave} onClose={()=>setModal(null)}/>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+function EstoqueForm({ item, saving, onSave, onClose }) {
+  const [form, setForm] = useState(item?{ nome:item.nome, marca:item.marca||'', categoria:item.categoria, quantidade:item.quantidade, unidade:item.unidade, minimo:item.minimo, local:item.local, validade:item.validade||'', valor:item.valor }:{ nome:'', marca:'', categoria:ESTOQUE_CATEGORIAS[0], quantidade:1, unidade:'Unidade', minimo:1, local:ESTOQUE_LOCAIS[0], validade:'', valor:'' });
+  const set=(k,v)=>setForm(f=>({...f,[k]:v}));
+  return (
+    <form onSubmit={e=>{e.preventDefault();onSave({...form,quantidade:Number(form.quantidade),minimo:Number(form.minimo),valor:Number(form.valor)||0,validade:form.validade||null});}} style={{ display:'flex', flexDirection:'column', gap:14 }}>
+      <div className="grid-2-1">
+        <Field label="Nome"><Input required value={form.nome} onChange={e=>set('nome',e.target.value)}/></Field>
+        <Field label="Marca"><Input value={form.marca} onChange={e=>set('marca',e.target.value)}/></Field>
+      </div>
+      <div className="grid-2">
+        <Field label="Categoria"><Select value={form.categoria} onChange={e=>set('categoria',e.target.value)}>{ESTOQUE_CATEGORIAS.map(c=><option key={c}>{c}</option>)}</Select></Field>
+        <Field label="Local"><Select value={form.local} onChange={e=>set('local',e.target.value)}>{ESTOQUE_LOCAIS.map(l=><option key={l}>{l}</option>)}</Select></Field>
+      </div>
+      <div className="grid-3">
+        <Field label="Quantidade"><Input required type="number" step="0.01" min="0" value={form.quantidade} onChange={e=>set('quantidade',e.target.value)}/></Field>
+        <Field label="Unidade"><Select value={form.unidade} onChange={e=>set('unidade',e.target.value)}>{COMPRA_UNIDADES.map(u=><option key={u}>{u}</option>)}</Select></Field>
+        <Field label="Mínimo"><Input required type="number" step="0.01" min="0" value={form.minimo} onChange={e=>set('minimo',e.target.value)}/></Field>
+      </div>
+      <div className="grid-2">
+        <Field label="Validade (opcional)"><Input type="date" value={form.validade||''} onChange={e=>set('validade',e.target.value)}/></Field>
+        <Field label="Valor (R$)"><Input type="number" step="0.01" min="0" value={form.valor} onChange={e=>set('valor',e.target.value)}/></Field>
+      </div>
+      <div style={{ display:'flex', justifyContent:'flex-end', gap:10, marginTop:6 }}>
+        <Btn variant="secondary" onClick={onClose}>Cancelar</Btn>
+        <Btn type="submit" disabled={saving}>{saving?'Salvando...':'Salvar'}</Btn>
+      </div>
+    </form>
+  );
+}
+
+// ── COMPRAS ────────────────────────────────────────────────────────────────
+export function ComprasPage() {
+  const { data:lista, setData:setLista, loading, error, reload } = useApiList(comprasApi.list.bind(comprasApi));
+  const [tab, setTab] = useState('todos');
+  const [quickAdd, setQuickAdd] = useState('');
+  const [modal, setModal] = useState(false);
+  const [actionError, setActionError] = useState('');
+
+  if (loading) return <LoadingScreen label="Carregando lista..."/>;
+  if (error) return <ErrorBanner message={error} onRetry={reload}/>;
+
+  const filtered = lista.filter(c=>tab==='todos'||c.tipo===tab);
+  const pendentes = filtered.filter(c=>!c.comprado);
+  const comprados = filtered.filter(c=>c.comprado);
+
+  const toggle = async (item) => {
+    try { const u=await comprasApi.update(item.id,{comprado:!item.comprado}); setLista(lista.map(c=>c.id===item.id?u:c)); } catch(e){setActionError(e.message);}
+  };
+  const remove = async (id) => { try { await comprasApi.remove(id); setLista(lista.filter(c=>c.id!==id)); } catch(e){setActionError(e.message);} };
+  const clearComprados = async () => { try { await comprasApi.clearComprados(); setLista(lista.filter(c=>!c.comprado)); } catch(e){setActionError(e.message);} };
+  const addItem = async (produto,categoria,tipo,unidade='Unidade') => {
+    if (lista.some(c=>c.produto===produto&&!c.comprado)) return;
+    try { const c=await comprasApi.create({produto,categoria,quantidade:1,unidade,tipo,comprado:false,observacoes:''}); setLista([...lista,c]); } catch(e){setActionError(e.message);}
+  };
+  const handleQuick = async (e) => { e.preventDefault(); if(!quickAdd.trim())return; await addItem(quickAdd.trim(),'Outros','mercado'); setQuickAdd(''); };
+  const saveNew = async (payload) => { try { const c=await comprasApi.create(payload); setLista([...lista,c]); setModal(false); } catch(e){setActionError(e.message);} };
+
+  return (
+    <div className="fadein">
+      <SectionHeader title="Lista de compras" subtitle="Feira e supermercado em uma só lista." action={<Btn icon={Plus} onClick={()=>setModal(true)}>Item personalizado</Btn>}/>
+      {actionError && <ErrorBanner message={actionError}/>}
+      <div style={{ display:'flex', gap:8, marginBottom:14 }}>
+        {[{k:'todos',l:'Todos',I:ShoppingCart},{k:'feira',l:'Feira',I:Apple},{k:'mercado',l:'Mercado',I:Package}].map(t=>(
+          <button key={t.k} onClick={()=>setTab(t.k)} style={{ padding:'8px 16px', borderRadius:999, fontSize:13, fontWeight:600, border:'1px solid var(--sm-border)', background:tab===t.k?'var(--sm-red)':'transparent', color:tab===t.k?'#fff':'var(--sm-text-soft)', display:'flex', alignItems:'center', gap:6, cursor:'pointer' }}><t.I size={14}/> {t.l}</button>
+        ))}
+      </div>
+      <form onSubmit={handleQuick} style={{ display:'flex', gap:8, marginBottom:16 }}>
+        <Input placeholder="Adicionar item rápido..." value={quickAdd} onChange={e=>setQuickAdd(e.target.value)}/>
+        <Btn type="submit" icon={Plus}>Adicionar</Btn>
+      </form>
+      <Card style={{ marginBottom:16 }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
+          <div style={{ fontWeight:600, fontSize:15 }}>Pendentes ({pendentes.length})</div>
+          {comprados.length>0 && <button onClick={clearComprados} style={{ background:'transparent', border:'none', color:'var(--sm-text-soft)', fontSize:12.5, fontWeight:600, cursor:'pointer' }}>Limpar comprados</button>}
+        </div>
+        {pendentes.length===0 ? <EmptyState icon={ShoppingCart} title="Lista vazia" subtitle="Tudo comprado!"/> : <div style={{ display:'flex', flexDirection:'column', gap:6 }}>{pendentes.map(c=><CompraItem key={c.id} item={c} onToggle={toggle} onRemove={remove}/>)}</div>}
+      </Card>
+      {comprados.length>0 && (
+        <Card style={{ marginBottom:16, opacity:0.75 }}>
+          <div style={{ fontWeight:600, fontSize:15, marginBottom:12 }}>Comprados ({comprados.length})</div>
+          <div style={{ display:'flex', flexDirection:'column', gap:6 }}>{comprados.map(c=><CompraItem key={c.id} item={c} onToggle={toggle} onRemove={remove}/>)}</div>
+        </Card>
+      )}
+      {(tab==='todos'||tab==='feira') && (
+        <Card style={{ marginBottom:16 }}>
+          <div style={{ fontWeight:600, fontSize:14, marginBottom:12, display:'flex', alignItems:'center', gap:8 }}><Apple size={16}/> Feira — toque para adicionar</div>
+          {Object.entries(FEIRA_ITENS).map(([cat,items])=>(
+            <div key={cat} style={{ marginBottom:10 }}>
+              <div style={{ fontSize:12, fontWeight:700, color:'var(--sm-text-soft)', marginBottom:6, textTransform:'uppercase', letterSpacing:.5 }}>{cat}</div>
+              <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
+                {items.map(item=>{ const a=lista.some(c=>c.produto===item&&!c.comprado); return <button key={item} disabled={a} onClick={()=>addItem(item,cat,'feira','Kg')} style={{ padding:'6px 12px', borderRadius:999, fontSize:12.5, border:'1px solid var(--sm-border)', background:a?'var(--sm-green-light)':'var(--sm-bg)', color:a?'var(--sm-green)':'var(--sm-text)', display:'flex', alignItems:'center', gap:4, cursor:a?'default':'pointer' }}>{a&&<Check size={12}/>}{item}</button>; })}
+              </div>
+            </div>
+          ))}
+        </Card>
+      )}
+      {(tab==='todos'||tab==='mercado') && (
+        <Card>
+          <div style={{ fontWeight:600, fontSize:14, marginBottom:12 }}>Mercado — adicionar por categoria</div>
+          <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>{MERCADO_CATEGORIAS.map(cat=><button key={cat} onClick={()=>addItem(cat,cat,'mercado')} style={{ padding:'8px 14px', borderRadius:999, fontSize:12.5, border:'1px solid var(--sm-border)', background:'var(--sm-bg)', color:'var(--sm-text)', cursor:'pointer' }}>+ {cat}</button>)}</div>
+        </Card>
+      )}
+      {modal && <Modal title="Novo item" onClose={()=>setModal(false)}><CompraForm onSave={saveNew} onClose={()=>setModal(false)}/></Modal>}
+    </div>
+  );
+}
+
+function CompraItem({ item, onToggle, onRemove }) {
+  return (
+    <div style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 4px', borderBottom:'1px solid var(--sm-border)' }}>
+      <button onClick={()=>onToggle(item)} style={{ background:'transparent', border:'none', color:item.comprado?'var(--sm-green)':'var(--sm-text-faint)', display:'flex', cursor:'pointer' }}>
+        {item.comprado?<CheckCircle2 size={22}/>:<Circle size={22}/>}
+      </button>
+      <div style={{ flex:1, minWidth:0 }}>
+        <div style={{ fontSize:14, fontWeight:500, textDecoration:item.comprado?'line-through':'none', color:item.comprado?'var(--sm-text-faint)':'var(--sm-text)' }}>{item.produto}</div>
+        {item.observacoes&&<div style={{ fontSize:12, color:'var(--sm-text-soft)' }}>{item.observacoes}</div>}
+      </div>
+      <span style={{ fontSize:13, color:'var(--sm-text-soft)', whiteSpace:'nowrap' }}>{Number(item.quantidade)} {item.unidade}</span>
+      <Badge tone={item.tipo==='feira'?'green':'blue'}>{item.tipo}</Badge>
+      <IconBtn icon={Trash2} tone="red" onClick={()=>onRemove(item.id)}/>
+    </div>
+  );
+}
+
+function CompraForm({ onSave, onClose }) {
+  const [form, setForm] = useState({ produto:'', categoria:MERCADO_CATEGORIAS[0], quantidade:1, unidade:'Unidade', tipo:'mercado', observacoes:'' });
+  const set=(k,v)=>setForm(f=>({...f,[k]:v}));
+  return (
+    <form onSubmit={e=>{e.preventDefault();onSave({...form,quantidade:Number(form.quantidade),comprado:false});}} style={{ display:'flex', flexDirection:'column', gap:14 }}>
+      <Field label="Produto"><Input required value={form.produto} onChange={e=>set('produto',e.target.value)}/></Field>
+      <div className="grid-2">
+        <Field label="Tipo"><Select value={form.tipo} onChange={e=>set('tipo',e.target.value)}><option value="feira">Feira</option><option value="mercado">Mercado</option></Select></Field>
+        <Field label="Categoria"><Select value={form.categoria} onChange={e=>set('categoria',e.target.value)}>{(form.tipo==='feira'?Object.keys(FEIRA_ITENS):MERCADO_CATEGORIAS).map(c=><option key={c}>{c}</option>)}</Select></Field>
+      </div>
+      <div className="grid-2">
+        <Field label="Qtd"><Input required type="number" step="0.01" min="0" value={form.quantidade} onChange={e=>set('quantidade',e.target.value)}/></Field>
+        <Field label="Unidade"><Select value={form.unidade} onChange={e=>set('unidade',e.target.value)}>{COMPRA_UNIDADES.map(u=><option key={u}>{u}</option>)}</Select></Field>
+      </div>
+      <Field label="Observações"><Input value={form.observacoes} onChange={e=>set('observacoes',e.target.value)}/></Field>
+      <div style={{ display:'flex', justifyContent:'flex-end', gap:10, marginTop:6 }}>
+        <Btn variant="secondary" onClick={onClose}>Cancelar</Btn>
+        <Btn type="submit">Adicionar</Btn>
+      </div>
+    </form>
+  );
+}
+
+// ── LIMPEZA ────────────────────────────────────────────────────────────────
+const PRIO_TONE = { Baixa:'neutral', Média:'blue', Alta:'amber', Urgente:'red' };
+const PRIO_ORDER = { Urgente:0, Alta:1, Média:2, Baixa:3 };
+
+export function LimpezaPage() {
+  const { data:limpeza, setData, loading, error, reload, saving, actionError, save, remove } = useCRUD(limpezaApi);
+  const { familia } = useFamilia();
+  const [modal, setModal] = useState(null);
+  const [filtroAmbiente, setFiltroAmbiente] = useState('todos');
+  const [filtroStatus, setFiltroStatus] = useState('pendente');
+
+  if (loading) return <LoadingScreen label="Carregando tarefas..."/>;
+  if (error) return <ErrorBanner message={error} onRetry={reload}/>;
+
+  const lista = [...limpeza].filter(t=>{
+    if (filtroAmbiente!=='todos'&&t.ambiente!==filtroAmbiente) return false;
+    return filtroStatus==='todas'||t.status===filtroStatus;
+  }).sort((a,b)=>(PRIO_ORDER[a.prioridade]??9)-(PRIO_ORDER[b.prioridade]??9));
+
+  const pendentes = limpeza.filter(t=>t.status==='pendente');
+  const concluidasHoje = limpeza.filter(t=>t.status==='concluida'&&t.data_conclusao===todayStr()).length;
+  const tempoEst = pendentes.reduce((s,t)=>s+t.tempo_estimado,0);
+  const tempoPorAmb = LIMPEZA_AMBIENTES.map(amb=>({ ambiente:amb, tempo:limpeza.filter(t=>t.ambiente===amb&&t.status==='concluida').reduce((s,t)=>s+(t.tempo_gasto||0),0) })).filter(a=>a.tempo>0).sort((a,b)=>b.tempo-a.tempo);
+
+  const conclude = async (tarefa) => {
+    const tempo = window.prompt(`Quantos minutos levou "${tarefa.nome}"?`, tarefa.tempo_estimado);
+    if (tempo===null) return;
+    try { const u=await limpezaApi.concluir(tarefa.id,Number(tempo)||tarefa.tempo_estimado); setData(limpeza.map(t=>t.id===tarefa.id?u:t)); } catch(e){}
+  };
+  const reopen = async (tarefa) => {
+    try { const u=await limpezaApi.reabrir(tarefa.id); setData(limpeza.map(t=>t.id===tarefa.id?u:t)); } catch(e){}
+  };
+  const handleSave = async (payload) => { if (await save(payload, modal?.id)) setModal(null); };
+
+  return (
+    <div className="fadein">
+      <SectionHeader title="Limpeza da casa" subtitle="Tarefas, responsáveis, tempos e prioridades." action={<Btn icon={Plus} onClick={()=>setModal({})}>Nova tarefa</Btn>}/>
+      {actionError && <ErrorBanner message={actionError}/>}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(150px,1fr))', gap:12, marginBottom:16 }}>
+        <Metric icon={AlertTriangle} label="Pendentes" value={pendentes.length} tone={pendentes.length?'amber':'green'}/>
+        <Metric icon={CheckCircle2} label="Concluídas hoje" value={concluidasHoje} tone="green"/>
+        <Metric icon={Clock} label="Tempo estimado" value={`${tempoEst} min`} tone="blue"/>
+        <Metric icon={AlertTriangle} label="Urgentes" value={pendentes.filter(t=>t.prioridade==='Urgente').length} tone="red"/>
+      </div>
+      {tempoPorAmb.length>0 && (
+        <Card style={{ marginBottom:16 }}>
+          <div style={{ fontWeight:600, fontSize:14, marginBottom:12 }}>Tempo gasto por ambiente</div>
+          {tempoPorAmb.map(a=>(
+            <div key={a.ambiente} style={{ marginBottom:10 }}>
+              <div style={{ display:'flex', justifyContent:'space-between', fontSize:13, marginBottom:4 }}><span>{a.ambiente}</span><span style={{ fontWeight:600 }}>{a.tempo} min</span></div>
+              <ProgressBar value={a.tempo} max={tempoPorAmb[0].tempo} tone="blue"/>
+            </div>
+          ))}
+        </Card>
+      )}
+      <div style={{ display:'flex', gap:8, marginBottom:14, flexWrap:'wrap' }}>
+        <Select value={filtroAmbiente} onChange={e=>setFiltroAmbiente(e.target.value)} style={{ width:'auto' }}><option value="todos">Todos ambientes</option>{LIMPEZA_AMBIENTES.map(a=><option key={a}>{a}</option>)}</Select>
+        {[{k:'pendente',l:'Pendentes'},{k:'concluida',l:'Concluídas'},{k:'todas',l:'Todas'}].map(f=>(
+          <button key={f.k} onClick={()=>setFiltroStatus(f.k)} style={{ padding:'8px 14px', borderRadius:999, fontSize:13, fontWeight:600, border:'1px solid var(--sm-border)', background:filtroStatus===f.k?'var(--sm-red)':'transparent', color:filtroStatus===f.k?'#fff':'var(--sm-text-soft)', cursor:'pointer' }}>{f.l}</button>
+        ))}
+      </div>
+      {lista.length===0 ? <EmptyState icon={CheckCircle2} title="Nenhuma tarefa encontrada"/> : (
+        <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+          {lista.map(t=>(
+            <Card key={t.id} style={{ display:'flex', alignItems:'center', gap:12, flexWrap:'wrap' }}>
+              <button onClick={()=>t.status==='concluida'?reopen(t):conclude(t)} style={{ background:'transparent', border:'none', color:t.status==='concluida'?'var(--sm-green)':'var(--sm-text-faint)', display:'flex', cursor:'pointer' }}>
+                {t.status==='concluida'?<CheckCircle2 size={24}/>:<Circle size={24}/>}
+              </button>
+              <div style={{ flex:'1 1 200px', minWidth:0 }}>
+                <div style={{ fontWeight:600, fontSize:14.5, textDecoration:t.status==='concluida'?'line-through':'none', color:t.status==='concluida'?'var(--sm-text-faint)':'var(--sm-text)' }}>{t.nome}</div>
+                <div style={{ fontSize:12.5, color:'var(--sm-text-soft)', marginTop:2 }}>{t.ambiente} · {t.descricao||'—'}</div>
+              </div>
+              <Badge tone={PRIO_TONE[t.prioridade]}>{t.prioridade}</Badge>
+              <Badge tone="neutral">{t.frequencia}</Badge>
+              {t.responsavel && <div style={{ display:'flex', alignItems:'center', gap:6 }}><Avatar name={t.responsavel} size={28}/><div style={{ fontSize:12.5, color:'var(--sm-text-soft)' }}><div>{t.responsavel}</div><div><Clock size={11} style={{ verticalAlign:-1 }}/> {t.status==='concluida'?`${t.tempo_gasto} min`:`${t.tempo_estimado} min est.`}</div></div></div>}
+              <div style={{ display:'flex', gap:6 }}><IconBtn icon={Edit2} onClick={()=>setModal(t)}/><IconBtn icon={Trash2} tone="red" onClick={()=>remove(t.id)}/></div>
+            </Card>
+          ))}
+        </div>
+      )}
+      {modal!==null && <Modal title={modal.id?'Editar tarefa':'Nova tarefa'} onClose={()=>setModal(null)}><LimpezaForm tarefa={modal.id?modal:null} familia={familia} saving={saving} onSave={handleSave} onClose={()=>setModal(null)}/></Modal>}
+    </div>
+  );
+}
+
+function LimpezaForm({ tarefa, familia, saving, onSave, onClose }) {
+  const [form, setForm] = useState(tarefa?{ nome:tarefa.nome, ambiente:tarefa.ambiente, descricao:tarefa.descricao||'', tempo_estimado:tarefa.tempo_estimado, frequencia:tarefa.frequencia, prioridade:tarefa.prioridade, responsavel:tarefa.responsavel||'' }:{ nome:'', ambiente:LIMPEZA_AMBIENTES[0], descricao:'', tempo_estimado:20, frequencia:'Semanal', prioridade:'Média', responsavel:familia[0]?.nome||'' });
+  const set=(k,v)=>setForm(f=>({...f,[k]:v}));
+  return (
+    <form onSubmit={e=>{e.preventDefault();onSave({...form,tempo_estimado:Number(form.tempo_estimado)});}} style={{ display:'flex', flexDirection:'column', gap:14 }}>
+      <Field label="Nome"><Input required value={form.nome} onChange={e=>set('nome',e.target.value)}/></Field>
+      <Field label="Descrição"><TextArea value={form.descricao} onChange={e=>set('descricao',e.target.value)}/></Field>
+      <div className="grid-2">
+        <Field label="Ambiente"><Select value={form.ambiente} onChange={e=>set('ambiente',e.target.value)}>{LIMPEZA_AMBIENTES.map(a=><option key={a}>{a}</option>)}</Select></Field>
+        <Field label="Frequência"><Select value={form.frequencia} onChange={e=>set('frequencia',e.target.value)}>{LIMPEZA_FREQ.map(f=><option key={f}>{f}</option>)}</Select></Field>
+      </div>
+      <div className="grid-3">
+        <Field label="Prioridade"><Select value={form.prioridade} onChange={e=>set('prioridade',e.target.value)}>{LIMPEZA_PRIORIDADES.map(p=><option key={p}>{p}</option>)}</Select></Field>
+        <Field label="Tempo (min)"><Input required type="number" min="1" value={form.tempo_estimado} onChange={e=>set('tempo_estimado',e.target.value)}/></Field>
+        <Field label="Responsável"><Select value={form.responsavel} onChange={e=>set('responsavel',e.target.value)}><option value="">—</option>{familia.map(m=><option key={m.id} value={m.nome}>{m.nome}</option>)}</Select></Field>
+      </div>
+      <div style={{ display:'flex', justifyContent:'flex-end', gap:10, marginTop:6 }}><Btn variant="secondary" onClick={onClose}>Cancelar</Btn><Btn type="submit" disabled={saving}>{saving?'Salvando...':'Salvar'}</Btn></div>
+    </form>
+  );
+}
+
+// ── VEÍCULOS ───────────────────────────────────────────────────────────────
+export function VeiculosPage() {
+  const { data:veiculos, setData, loading, error, reload } = useApiList(veiculosApi.list.bind(veiculosApi));
+  const [selectedId, setSelectedId] = useState(null);
+  const [modalVeiculo, setModalVeiculo] = useState(null);
+  const [modalManut, setModalManut] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [actionError, setActionError] = useState('');
+
+  if (loading) return <LoadingScreen label="Carregando veículos..."/>;
+  if (error) return <ErrorBanner message={error} onRetry={reload}/>;
+
+  const veiculo = veiculos.find(v=>v.id===selectedId)||veiculos[0]||null;
+
+  const saveVeiculo = async (payload) => {
+    setSaving(true); setActionError('');
+    try {
+      if (modalVeiculo?.id) { const u=await veiculosApi.update(modalVeiculo.id,payload); setData(veiculos.map(v=>v.id===modalVeiculo.id?{...u,manutencoes:v.manutencoes}:v)); }
+      else { const c=await veiculosApi.create(payload); setData([...veiculos,c]); setSelectedId(c.id); }
+      setModalVeiculo(null);
+    } catch(e){setActionError(e.message);} finally{setSaving(false);}
+  };
+
+  const removeVeiculo = async (id) => {
+    try { await veiculosApi.remove(id); const rest=veiculos.filter(v=>v.id!==id); setData(rest); if(selectedId===id)setSelectedId(rest[0]?.id||null); } catch(e){setActionError(e.message);}
+  };
+
+  const addManutencao = async (payload) => {
+    setSaving(true);
+    try {
+      const m = await veiculosApi.addManutencao(veiculo.id, payload);
+      setData(veiculos.map(v=>v.id===veiculo.id?{...v,manutencoes:[m,...(v.manutencoes||[])],km:Math.max(v.km,payload.km)}:v));
+      setModalManut(false);
+    } catch(e){setActionError(e.message);} finally{setSaving(false);}
+  };
+
+  const removeManut = async (mid) => {
+    try { await veiculosApi.removeManutencao(mid); setData(veiculos.map(v=>v.id===veiculo?.id?{...v,manutencoes:v.manutencoes.filter(m=>m.id!==mid)}:v)); } catch(e){setActionError(e.message);}
+  };
+
+  if (veiculos.length===0) return (
+    <div className="fadein">
+      <SectionHeader title="Gestão de veículos" action={<Btn icon={Plus} onClick={()=>setModalVeiculo({})}>Novo veículo</Btn>}/>
+      <EmptyState icon={Car} title="Nenhum veículo cadastrado"/>
+      {modalVeiculo!==null && <Modal title="Novo veículo" onClose={()=>setModalVeiculo(null)}><VeiculoForm veiculo={null} saving={saving} onSave={saveVeiculo} onClose={()=>setModalVeiculo(null)}/></Modal>}
+    </div>
+  );
+
+  const totalGasto=(veiculo?.manutencoes||[]).reduce((s,m)=>s+Number(m.valor),0);
+  const kmRest=veiculo?.proxima_troca_km?veiculo.proxima_troca_km-veiculo.km:null;
+  const diasSeg=daysUntil(veiculo?.seguro_vencimento);
+  const diasLic=daysUntil(veiculo?.licenciamento_vencimento);
+  const gastosPorCat=VEICULO_CATEGORIAS.map(cat=>({ categoria:cat, valor:(veiculo?.manutencoes||[]).filter(m=>m.categoria===cat).reduce((s,m)=>s+Number(m.valor),0) })).filter(c=>c.valor>0).sort((a,b)=>b.valor-a.valor);
+
+  const AlertRow=({icon:Icon,label,value,tone})=>{
+    const c={red:'var(--sm-red)',amber:'var(--sm-amber)',green:'var(--sm-green)'}[tone];
+    return <div style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 12px', borderRadius:10, background:'var(--sm-bg)' }}><div style={{ color:c }}><Icon size={17}/></div><div style={{ flex:1 }}><div style={{ fontSize:13, fontWeight:600 }}>{label}</div><div style={{ fontSize:12.5, color:'var(--sm-text-soft)' }}>{value}</div></div></div>;
+  };
+
+  return (
+    <div className="fadein">
+      <SectionHeader title="Gestão de veículos" action={<Btn icon={Plus} onClick={()=>setModalVeiculo({})}>Novo veículo</Btn>}/>
+      {actionError && <ErrorBanner message={actionError}/>}
+      <div className="scroll-x" style={{ display:'flex', gap:8, marginBottom:16, paddingBottom:4 }}>
+        {veiculos.map(v=>(
+          <button key={v.id} onClick={()=>setSelectedId(v.id)} style={{ padding:'10px 16px', borderRadius:12, fontSize:13.5, fontWeight:600, border:'1px solid var(--sm-border)', whiteSpace:'nowrap', background:(selectedId||veiculos[0]?.id)===v.id?'var(--sm-red)':'var(--sm-surface)', color:(selectedId||veiculos[0]?.id)===v.id?'#fff':'var(--sm-text)', display:'flex', alignItems:'center', gap:8, cursor:'pointer' }}>
+            <Car size={16}/> {v.marca} {v.modelo} <span style={{ opacity:.7 }}>· {v.placa}</span>
+          </button>
+        ))}
+      </div>
+      {veiculo && <>
+        <Card style={{ marginBottom:16 }}>
+          {veiculo.foto_path && (
+            <img src={veiculo.foto_path.startsWith('http') ? veiculo.foto_path : `https://zzpzvjueortfmcyfygef.supabase.co/storage/v1/object/public/arquivos/${veiculo.foto_path}`} alt={`${veiculo.marca} ${veiculo.modelo}`} style={{ width:'100%', height:220, objectFit:'cover', borderRadius:8, marginBottom:16, border:'1px solid var(--sm-border)' }} />
+          )}
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', flexWrap:'wrap', gap:12 }}>
+            <div><div style={{ fontSize:19, fontWeight:700, fontFamily:'Outfit' }}>{veiculo.marca} {veiculo.modelo} ({veiculo.ano})</div><div style={{ fontSize:13, color:'var(--sm-text-soft)', marginTop:4 }}>Placa {veiculo.placa} · {veiculo.cor||'—'} · {veiculo.km?.toLocaleString('pt-BR')} km</div></div>
+            <div style={{ display:'flex', gap:6 }}><IconBtn icon={Edit2} onClick={()=>setModalVeiculo(veiculo)}/><IconBtn icon={Trash2} tone="red" onClick={()=>removeVeiculo(veiculo.id)}/></div>
+          </div>
+        </Card>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(150px,1fr))', gap:12, marginBottom:16 }}>
+          <Metric icon={Wrench} label="Gasto total" value={fmtMoney(totalGasto)}/>
+          <Metric icon={Wrench} label="Próx. troca óleo" value={kmRest!==null?(kmRest>0?`${kmRest.toLocaleString('pt-BR')} km`:'Vencida'):'—'} tone={kmRest!==null&&kmRest<=1000?'amber':'neutral'}/>
+          <Metric icon={Shield} label="Seguro" value={diasSeg!==null?(diasSeg<0?'Vencido':`${diasSeg}d`):'—'} tone={diasSeg!==null&&diasSeg<0?'red':diasSeg!==null&&diasSeg<=30?'amber':'green'}/>
+          <Metric icon={FileText} label="Licenciamento" value={diasLic!==null?(diasLic<0?'Vencido':`${diasLic}d`):'—'} tone={diasLic!==null&&diasLic<0?'red':diasLic!==null&&diasLic<=30?'amber':'green'}/>
+        </div>
+        <Card style={{ marginBottom:16 }}>
+          <div style={{ fontWeight:600, fontSize:14, marginBottom:10 }}>Alertas automáticos</div>
+          {kmRest!==null && <AlertRow icon={Wrench} label="Troca de óleo" value={kmRest<=0?'Atrasada — agendar agora':`Faltam ${kmRest.toLocaleString('pt-BR')} km · ${fmtDate(veiculo.proxima_troca_data)}`} tone={kmRest<=1000?'amber':'green'}/>}
+          {diasSeg!==null && <AlertRow icon={Shield} label={`Seguro (${veiculo.seguradora||'—'})`} value={diasSeg<0?`Vencido há ${Math.abs(diasSeg)} dias`:`Vence em ${diasSeg} dias (${fmtDate(veiculo.seguro_vencimento)})`} tone={diasSeg<0?'red':diasSeg<=30?'amber':'green'}/>}
+          {diasLic!==null && <AlertRow icon={FileText} label="Licenciamento" value={diasLic<0?`Vencido há ${Math.abs(diasLic)} dias`:`Vence em ${diasLic} dias (${fmtDate(veiculo.licenciamento_vencimento)})`} tone={diasLic<0?'red':diasLic<=30?'amber':'green'}/>}
+        </Card>
+        {gastosPorCat.length>0 && (
+          <Card style={{ marginBottom:16 }}>
+            <div style={{ fontWeight:600, fontSize:14, marginBottom:12 }}>Gastos por categoria</div>
+            {gastosPorCat.map(c=>(
+              <div key={c.categoria} style={{ marginBottom:10 }}>
+                <div style={{ display:'flex', justifyContent:'space-between', fontSize:13, marginBottom:4 }}><span>{c.categoria}</span><span style={{ fontWeight:600 }}>{fmtMoney(c.valor)}</span></div>
+                <ProgressBar value={c.valor} max={gastosPorCat[0].valor}/>
+              </div>
+            ))}
+          </Card>
+        )}
+        <Card>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
+            <div style={{ fontWeight:600, fontSize:15 }}>Histórico de manutenções</div>
+            <Btn icon={Plus} onClick={()=>setModalManut(true)}>Registrar</Btn>
+          </div>
+          {(veiculo.manutencoes||[]).length===0 ? <EmptyState icon={Wrench} title="Nenhuma manutenção registrada"/> : (
+            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              {(veiculo.manutencoes||[]).map(m=>{
+                const nfUrl = m.nota_fiscal_path ? (m.nota_fiscal_path.startsWith('http') ? m.nota_fiscal_path : `https://zzpzvjueortfmcyfygef.supabase.co/storage/v1/object/public/arquivos/${m.nota_fiscal_path}`) : '';
+                return (
+                  <div key={m.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 0', borderBottom:'1px solid var(--sm-border)', flexWrap:'wrap' }}>
+                    <div style={{ flex:'1 1 160px', minWidth:0 }}>
+                      <div style={{ fontWeight:600, fontSize:14 }}>{m.descricao}</div>
+                      <div style={{ fontSize:12.5, color:'var(--sm-text-soft)' }}>{m.categoria} · {m.local||'—'} · {fmtDate(m.data)}</div>
+                    </div>
+                    <div style={{ fontSize:12.5, color:'var(--sm-text-soft)' }}>{m.km?.toLocaleString('pt-BR')} km</div>
+                    {m.nota_fiscal_path ? (
+                      <a href={nfUrl} target="_blank" rel="noopener noreferrer" style={{ display:'inline-flex', textDecoration:'none' }}>
+                        <Badge tone="blue">NF Anexo</Badge>
+                      </a>
+                    ) : (
+                      m.nota_fiscal && <Badge tone="neutral">NF</Badge>
+                    )}
+                    <div style={{ fontWeight:700, fontFamily:'Outfit' }}>{Number(m.valor)>0?fmtMoney(m.valor):'Grátis'}</div>
+                    <IconBtn icon={Trash2} tone="red" onClick={()=>removeManut(m.id)}/>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </Card>
+      </>}
+      {modalVeiculo!==null && <Modal title={modalVeiculo.id?'Editar veículo':'Novo veículo'} onClose={()=>setModalVeiculo(null)}><VeiculoForm veiculo={modalVeiculo.id?modalVeiculo:null} saving={saving} onSave={saveVeiculo} onClose={()=>setModalVeiculo(null)}/></Modal>}
+      {modalManut && veiculo && <Modal title="Registrar manutenção" onClose={()=>setModalManut(false)}><ManutForm veiculo={veiculo} saving={saving} onSave={addManutencao} onClose={()=>setModalManut(false)}/></Modal>}
+    </div>
+  );
+}
+
+function VeiculoForm({ veiculo, saving, onSave, onClose }) {
+  const marcas=Object.keys(CAR_BRANDS);
+  const [form,setForm]=useState(veiculo?{ marca:veiculo.marca,modelo:veiculo.modelo,ano:veiculo.ano,placa:veiculo.placa,cor:veiculo.cor||'',km:veiculo.km,proxima_troca_km:veiculo.proxima_troca_km||'',proxima_troca_data:veiculo.proxima_troca_data||'',seguro_vencimento:veiculo.seguro_vencimento||'',seguradora:veiculo.seguradora||'',licenciamento_vencimento:veiculo.licenciamento_vencimento||'',foto_path:veiculo.foto_path||'' }:{ marca:marcas[0],modelo:CAR_BRANDS[marcas[0]][0],ano:new Date().getFullYear(),placa:'',cor:'',km:0,proxima_troca_km:'',proxima_troca_data:'',seguro_vencimento:'',seguradora:'',licenciamento_vencimento:'',foto_path:'' });
+  const set=(k,v)=>setForm(f=>({...f,[k]:v}));
+  const modelos=CAR_BRANDS[form.marca]||['Outro modelo'];
+  return (
+    <form onSubmit={e=>{e.preventDefault();onSave({...form,ano:Number(form.ano),km:Number(form.km),proxima_troca_km:form.proxima_troca_km?Number(form.proxima_troca_km):null,proxima_troca_data:form.proxima_troca_data||null,seguro_vencimento:form.seguro_vencimento||null,licenciamento_vencimento:form.licenciamento_vencimento||null});}} style={{ display:'flex', flexDirection:'column', gap:14 }}>
+      <div className="grid-2">
+        <Field label="Marca"><Select value={form.marca} onChange={e=>{ const m = e.target.value; setForm(f => ({ ...f, marca: m, modelo: CAR_BRANDS[m] ? CAR_BRANDS[m][0] : 'Outro modelo' })); }}>{marcas.map(b=><option key={b}>{b}</option>)}</Select></Field>
+        <Field label="Modelo"><Select value={form.modelo} onChange={e=>set('modelo',e.target.value)}>{modelos.map(m=><option key={m}>{m}</option>)}</Select></Field>
+      </div>
+      <div className="grid-3">
+        <Field label="Ano"><Input required type="number" value={form.ano} onChange={e=>set('ano',e.target.value)}/></Field>
+        <Field label="Placa"><Input required value={form.placa} onChange={e=>set('placa',e.target.value.toUpperCase())}/></Field>
+        <Field label="Cor"><Input value={form.cor} onChange={e=>set('cor',e.target.value)}/></Field>
+      </div>
+      <Field label="Quilometragem atual"><Input required type="number" min="0" value={form.km} onChange={e=>set('km',e.target.value)}/></Field>
+      <div className="grid-2">
+        <Field label="Próx. troca (km)"><Input type="number" min="0" value={form.proxima_troca_km} onChange={e=>set('proxima_troca_km',e.target.value)}/></Field>
+        <Field label="Próx. troca (data)"><Input type="date" value={form.proxima_troca_data} onChange={e=>set('proxima_troca_data',e.target.value)}/></Field>
+      </div>
+      <div className="grid-2">
+        <Field label="Seguradora"><Input value={form.seguradora} onChange={e=>set('seguradora',e.target.value)}/></Field>
+        <Field label="Venc. seguro"><Input type="date" value={form.seguro_vencimento} onChange={e=>set('seguro_vencimento',e.target.value)}/></Field>
+      </div>
+      <Field label="Venc. licenciamento"><Input type="date" value={form.licenciamento_vencimento} onChange={e=>set('licenciamento_vencimento',e.target.value)}/></Field>
+      <FileUploader folder="veiculos" value={form.foto_path} onUploadComplete={({ path }) => set('foto_path', path)} onRemove={() => set('foto_path', '')} label="Foto do veículo (imagem)" accept="image/*" />
+      <div style={{ display:'flex', justifyContent:'flex-end', gap:10, marginTop:6 }}><Btn variant="secondary" onClick={onClose}>Cancelar</Btn><Btn type="submit" disabled={saving}>{saving?'Salvando...':'Salvar'}</Btn></div>
+    </form>
+  );
+}
+
+function ManutForm({ veiculo, saving, onSave, onClose }) {
+  const [form,setForm]=useState({ data:todayStr(),categoria:VEICULO_CATEGORIAS[0],descricao:'',local:'',valor:'',km:veiculo.km,nota_fiscal:false,nota_fiscal_path:'' });
+  const set=(k,v)=>setForm(f=>({...f,[k]:v}));
+  return (
+    <form onSubmit={e=>{e.preventDefault();onSave({...form,valor:Number(form.valor)||0,km:Number(form.km)});}} style={{ display:'flex', flexDirection:'column', gap:14 }}>
+      <div className="grid-2">
+        <Field label="Data"><Input required type="date" value={form.data} onChange={e=>set('data',e.target.value)}/></Field>
+        <Field label="Categoria"><Select value={form.categoria} onChange={e=>set('categoria',e.target.value)}>{VEICULO_CATEGORIAS.map(c=><option key={c}>{c}</option>)}</Select></Field>
+      </div>
+      <Field label="Descrição"><Input required value={form.descricao} onChange={e=>set('descricao',e.target.value)} placeholder="Ex: Troca de óleo"/></Field>
+      <div className="grid-2">
+        <Field label="Oficina / local"><Input value={form.local} onChange={e=>set('local',e.target.value)}/></Field>
+        <Field label="Valor (R$)"><Input type="number" step="0.01" min="0" value={form.valor} onChange={e=>set('valor',e.target.value)}/></Field>
+      </div>
+      <Field label="Quilometragem"><Input required type="number" min="0" value={form.km} onChange={e=>set('km',e.target.value)}/></Field>
+      <FileUploader folder="manutencoes" value={form.nota_fiscal_path} onUploadComplete={({ path }) => setForm(f => ({ ...f, nota_fiscal_path: path, nota_fiscal: true }))} onRemove={() => setForm(f => ({ ...f, nota_fiscal_path: '', nota_fiscal: false }))} label="Nota fiscal (anexo de recibo)" />
+      <div style={{ display:'flex', justifyContent:'flex-end', gap:10, marginTop:6 }}><Btn variant="secondary" onClick={onClose}>Cancelar</Btn><Btn type="submit" disabled={saving}>{saving?'Salvando...':'Registrar'}</Btn></div>
+    </form>
+  );
+}
+
+// ── DOCUMENTOS ─────────────────────────────────────────────────────────────
+export function DocumentosPage() {
+  const { data:documentos, loading, error, reload, saving, actionError, save, remove } = useCRUD(documentosApi);
+  const { familia } = useFamilia();
+  const [modal, setModal] = useState(null);
+  const [filtroCat, setFiltroCat] = useState('todas');
+  const [busca, setBusca] = useState('');
+
+  if (loading) return <LoadingScreen label="Carregando documentos..."/>;
+  if (error) return <ErrorBanner message={error} onRetry={reload}/>;
+
+  const lista = [...documentos].filter(d=>{
+    if (busca){ const q=busca.toLowerCase(); if(!d.nome.toLowerCase().includes(q)&&!(d.descricao||'').toLowerCase().includes(q)&&!(d.tags||[]).some(t=>t.toLowerCase().includes(q))) return false; }
+    return filtroCat==='todas'||d.categoria===filtroCat;
+  }).sort((a,b)=>{ const da=daysUntil(a.vencimento),db=daysUntil(b.vencimento); if(da===null&&db===null)return 0; if(da===null)return 1; if(db===null)return -1; return da-db; });
+
+  const vencendo=documentos.filter(d=>{const dd=daysUntil(d.vencimento);return dd!==null&&dd<=30;});
+  const handleSave = async (payload) => { if (await save(payload, modal?.id)) setModal(null); };
+
+  return (
+    <div className="fadein">
+      <SectionHeader title="Documentos da casa" subtitle="Escrituras, contratos, garantias e comprovantes." action={<Btn icon={Plus} onClick={()=>setModal({})}>Novo documento</Btn>}/>
+      {actionError && <ErrorBanner message={actionError}/>}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(150px,1fr))', gap:12, marginBottom:16 }}>
+        <Metric icon={FileText} label="Documentos" value={documentos.length}/>
+        <Metric icon={AlertTriangle} label="Vencendo em 30 dias" value={vencendo.length} tone={vencendo.length?'amber':'green'}/>
+        <Metric icon={AlertTriangle} label="Vencidos" value={vencendo.filter(d=>daysUntil(d.vencimento)<0).length} tone={vencendo.filter(d=>daysUntil(d.vencimento)<0).length?'red':'green'}/>
+        <Metric icon={Shield} label="Segurança RLS" value="Ativa" tone="green"/>
+      </div>
+      <div style={{ display:'flex', gap:8, marginBottom:14, flexWrap:'wrap' }}>
+        <div style={{ position:'relative', flex:'1 1 200px' }}><Search size={16} style={{ position:'absolute', left:12, top:12, color:'var(--sm-text-faint)' }}/><Input placeholder="Buscar por nome, descrição ou tag..." value={busca} onChange={e=>setBusca(e.target.value)} style={{ paddingLeft:36 }}/></div>
+        <Select value={filtroCat} onChange={e=>setFiltroCat(e.target.value)} style={{ width:'auto' }}><option value="todas">Todas categorias</option>{DOC_CATEGORIAS.map(c=><option key={c}>{c}</option>)}</Select>
+      </div>
+      {lista.length===0 ? <EmptyState icon={FileText} title="Nenhum documento encontrado"/> : (
+        <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+          {lista.map(d=>{
+            const dd=daysUntil(d.vencimento);
+            const fileUrl = d.arquivo_path ? (d.arquivo_path.startsWith('http') ? d.arquivo_path : `https://zzpzvjueortfmcyfygef.supabase.co/storage/v1/object/public/arquivos/${d.arquivo_path}`) : '';
+            return (
+              <Card key={d.id} style={{ display:'flex', alignItems:'center', gap:12, flexWrap:'wrap' }}>
+                <div style={{ width:40, height:40, borderRadius:10, background:'var(--sm-red-light)', display:'flex', alignItems:'center', justifyContent:'center', color:'var(--sm-red)', flexShrink:0 }}><FileText size={19}/></div>
+                <div style={{ flex:'1 1 200px', minWidth:0 }}>
+                  <div style={{ fontWeight:600, fontSize:14.5 }}>{d.nome}</div>
+                  <div style={{ fontSize:12.5, color:'var(--sm-text-soft)', marginTop:2 }}>{d.descricao||'—'} · {d.responsavel||'—'}</div>
+                  {(d.tags||[]).length>0 && <div style={{ display:'flex', gap:4, marginTop:6, flexWrap:'wrap' }}>{(d.tags||[]).map(t=><span key={t} style={{ fontSize:11, padding:'2px 8px', borderRadius:999, background:'var(--sm-bg)', color:'var(--sm-text-soft)', border:'1px solid var(--sm-border)' }}>#{t}</span>)}</div>}
+                </div>
+                <Badge tone="neutral">{d.categoria}</Badge>
+                <div style={{ textAlign:'right', minWidth:100 }}>
+                  <div style={{ fontSize:12, color:'var(--sm-text-soft)' }}>emitido {fmtDate(d.emissao)}</div>
+                  {d.vencimento && <Badge tone={dd<0?'red':dd<=30?'amber':'neutral'}>{dd<0?'vencido':`vence ${fmtDate(d.vencimento)}`}</Badge>}
+                </div>
+                <div style={{ display:'flex', gap:6, alignItems:'center' }}>
+                  {d.arquivo_path && (
+                    <a href={fileUrl} target="_blank" rel="noopener noreferrer" style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'6px 12px', borderRadius:8, border:'1px solid var(--sm-border)', background:'var(--sm-bg)', color:'var(--sm-text)', fontSize:12.5, fontWeight:600, textDecoration:'none', marginRight:8 }}>
+                      <Download size={14}/> Anexo
+                    </a>
+                  )}
+                  <IconBtn icon={Edit2} onClick={()=>setModal(d)}/>
+                  <IconBtn icon={Trash2} tone="red" onClick={()=>remove(d.id)}/>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+      {modal!==null && <Modal title={modal.id?'Editar documento':'Novo documento'} onClose={()=>setModal(null)}><DocForm doc={modal.id?modal:null} familia={familia} saving={saving} onSave={handleSave} onClose={()=>setModal(null)}/></Modal>}
+    </div>
+  );
+}
+
+function DocForm({ doc, familia, saving, onSave, onClose }) {
+  const [form,setForm]=useState(doc?{ nome:doc.nome,categoria:doc.categoria,descricao:doc.descricao||'',emissao:doc.emissao||'',vencimento:doc.vencimento||'',responsavel:doc.responsavel||'',tagsStr:(doc.tags||[]).join(', '),arquivo_path:doc.arquivo_path||'' }:{ nome:'',categoria:DOC_CATEGORIAS[0],descricao:'',emissao:todayStr(),vencimento:'',responsavel:familia[0]?.nome||'',tagsStr:'',arquivo_path:'' });
+  const set=(k,v)=>setForm(f=>({...f,[k]:v}));
+  return (
+    <form onSubmit={e=>{e.preventDefault();const{tagsStr,...rest}=form;onSave({...rest,vencimento:form.vencimento||null,emissao:form.emissao||null,tags:tagsStr.split(',').map(t=>t.trim()).filter(Boolean)});}} style={{ display:'flex', flexDirection:'column', gap:14 }}>
+      <Field label="Nome"><Input required value={form.nome} onChange={e=>set('nome',e.target.value)}/></Field>
+      <Field label="Categoria"><Select value={form.categoria} onChange={e=>set('categoria',e.target.value)}>{DOC_CATEGORIAS.map(c=><option key={c}>{c}</option>)}</Select></Field>
+      <Field label="Descrição"><TextArea value={form.descricao} onChange={e=>set('descricao',e.target.value)}/></Field>
+      <div className="grid-2">
+        <Field label="Data de emissão"><Input type="date" value={form.emissao} onChange={e=>set('emissao',e.target.value)}/></Field>
+        <Field label="Vencimento (opcional)"><Input type="date" value={form.vencimento} onChange={e=>set('vencimento',e.target.value)}/></Field>
+      </div>
+      <Field label="Responsável"><Select value={form.responsavel} onChange={e=>set('responsavel',e.target.value)}><option value="">—</option>{familia.map(m=><option key={m.id} value={m.nome}>{m.nome}</option>)}</Select></Field>
+      <Field label="Tags (separadas por vírgula)"><Input value={form.tagsStr} onChange={e=>set('tagsStr',e.target.value)} placeholder="Ex: imóvel, importante"/></Field>
+      <FileUploader folder="documentos" value={form.arquivo_path} onUploadComplete={({ path }) => set('arquivo_path', path)} onRemove={() => set('arquivo_path', '')} label="Documento (PDF, Imagem, etc.)" />
+      <div style={{ display:'flex', justifyContent:'flex-end', gap:10, marginTop:6 }}><Btn variant="secondary" onClick={onClose}>Cancelar</Btn><Btn type="submit" disabled={saving}>{saving?'Salvando...':'Salvar'}</Btn></div>
+    </form>
+  );
+}
+
+// ── PATRIMÔNIO ─────────────────────────────────────────────────────────────
+export function PatrimonioPage() {
+  const { data:patrimonio, loading, error, reload, saving, actionError, save, remove } = useCRUD(patrimonioApi);
+  const [modal, setModal] = useState(null);
+  const [filtroCat, setFiltroCat] = useState('todas');
+  const [busca, setBusca] = useState('');
+
+  if (loading) return <LoadingScreen label="Carregando patrimônio..."/>;
+  if (error) return <ErrorBanner message={error} onRetry={reload}/>;
+
+  const lista = patrimonio.filter(b=>{
+    if (busca&&!b.nome.toLowerCase().includes(busca.toLowerCase())&&!(b.marca||'').toLowerCase().includes(busca.toLowerCase())) return false;
+    return filtroCat==='todas'||b.categoria===filtroCat;
+  });
+
+  const valorTotal=patrimonio.reduce((s,b)=>s+Number(b.valor),0);
+  const garantiasAtivas=patrimonio.filter(b=>daysUntil(b.garantia_fim)>=0);
+  const garantiasVencendo=garantiasAtivas.filter(b=>daysUntil(b.garantia_fim)<=30);
+  const porCat=BEM_CATEGORIAS.map(cat=>({ categoria:cat, valor:patrimonio.filter(b=>b.categoria===cat).reduce((s,b)=>s+Number(b.valor),0) })).filter(c=>c.valor>0).sort((a,b)=>b.valor-a.valor);
+
+  const handleSave = async (payload) => { if (await save(payload, modal?.id)) setModal(null); };
+
+  const exportar = () => downloadCSV(patrimonio.map(b=>({ Nome:b.nome,Marca:b.marca||'',Modelo:b.modelo||'',Categoria:b.categoria,'Data Compra':b.data_compra||'',Valor:b.valor,Loja:b.loja||'','Garantia Fim':b.garantia_fim||'' })), 'inventario_patrimonio.csv');
+
+  return (
+    <div className="fadein">
+      <SectionHeader title="Garantias e patrimônio" subtitle="Inventário familiar com garantias e valores."
+        action={<div style={{ display:'flex', gap:8 }}><Btn variant="secondary" icon={Download} onClick={exportar}>Exportar CSV</Btn><Btn icon={Plus} onClick={()=>setModal({})}>Novo bem</Btn></div>}/>
+      {actionError && <ErrorBanner message={actionError}/>}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))', gap:12, marginBottom:16 }}>
+        <Metric icon={Award} label="Valor total" value={fmtMoney(valorTotal)}/>
+        <Metric icon={Shield} label="Garantias ativas" value={garantiasAtivas.length} tone="green"/>
+        <Metric icon={AlertTriangle} label="Vencendo em 30 dias" value={garantiasVencendo.length} tone={garantiasVencendo.length?'amber':'green'}/>
+        <Metric icon={Clock} label="Total de bens" value={patrimonio.length}/>
+      </div>
+      {porCat.length>0 && (
+        <Card style={{ marginBottom:16 }}>
+          <div style={{ fontWeight:600, fontSize:14, marginBottom:12 }}>Valor por categoria</div>
+          {porCat.map(c=>(
+            <div key={c.categoria} style={{ marginBottom:10 }}>
+              <div style={{ display:'flex', justifyContent:'space-between', fontSize:13, marginBottom:4 }}><span>{c.categoria}</span><span style={{ fontWeight:600 }}>{fmtMoney(c.valor)}</span></div>
+              <ProgressBar value={c.valor} max={porCat[0].valor}/>
+            </div>
+          ))}
+        </Card>
+      )}
+      <div style={{ display:'flex', gap:8, marginBottom:14, flexWrap:'wrap' }}>
+        <div style={{ position:'relative', flex:'1 1 200px' }}><Search size={16} style={{ position:'absolute', left:12, top:12, color:'var(--sm-text-faint)' }}/><Input placeholder="Buscar bem..." value={busca} onChange={e=>setBusca(e.target.value)} style={{ paddingLeft:36 }}/></div>
+        <Select value={filtroCat} onChange={e=>setFiltroCat(e.target.value)} style={{ width:'auto' }}><option value="todas">Todas categorias</option>{BEM_CATEGORIAS.map(c=><option key={c}>{c}</option>)}</Select>
+      </div>
+      {lista.length===0 ? <EmptyState icon={Award} title="Nenhum bem cadastrado"/> : (
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(280px,1fr))', gap:12 }}>
+          {lista.map(b=>{
+            const dG=daysUntil(b.garantia_fim);
+            return (
+              <Card key={b.id}>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:8 }}>
+                  <div><div style={{ fontWeight:600, fontSize:14.5 }}>{b.nome}</div><div style={{ fontSize:12.5, color:'var(--sm-text-soft)' }}>{b.marca||''} {b.modelo||''} · {b.categoria}</div></div>
+                  <div style={{ display:'flex', gap:4 }}><IconBtn icon={Edit2} onClick={()=>setModal(b)}/><IconBtn icon={Trash2} tone="red" onClick={()=>remove(b.id)}/></div>
+                </div>
+                {b.foto_path && (
+                  <img src={b.foto_path.startsWith('http') ? b.foto_path : `https://zzpzvjueortfmcyfygef.supabase.co/storage/v1/object/public/arquivos/${b.foto_path}`} alt={b.nome} style={{ width:'100%', height:140, objectFit:'cover', borderRadius:8, marginBottom:10, border:'1px solid var(--sm-border)' }} />
+                )}
+                <div style={{ fontSize:12.5, color:'var(--sm-text-soft)', marginBottom:8 }}>{b.data_compra?`Comprado em ${fmtDate(b.data_compra)}`:''}{b.loja?` · ${b.loja}`:''}</div>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                  <span style={{ fontWeight:700, fontFamily:'Outfit', fontSize:16 }}>{fmtMoney(b.valor)}</span>
+                  {b.garantia_fim && <Badge tone={dG<0?'red':dG<=30?'amber':'green'}>{dG<0?'garantia expirada':`garantia até ${fmtDate(b.garantia_fim)}`}</Badge>}
+                </div>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginTop:10, flexWrap:'wrap', gap:8 }}>
+                  {b.garantia_empresa && <div style={{ fontSize:12, color:'var(--sm-text-soft)' }}><Phone size={12} style={{ verticalAlign:-1, marginRight:4 }}/>{b.garantia_empresa} · {b.garantia_contato||'—'}</div>}
+                  {b.nota_fiscal_path && (
+                    <a href={b.nota_fiscal_path.startsWith('http') ? b.nota_fiscal_path : `https://zzpzvjueortfmcyfygef.supabase.co/storage/v1/object/public/arquivos/${b.nota_fiscal_path}`} target="_blank" rel="noopener noreferrer" style={{ display:'inline-flex', alignItems:'center', gap:4, fontSize:12.5, color:'var(--sm-red)', textDecoration:'none', fontWeight:600 }}>
+                      <FileText size={13}/> Nota Fiscal
+                    </a>
+                  )}
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+      {modal!==null && <Modal title={modal.id?'Editar bem':'Novo bem'} onClose={()=>setModal(null)} width={560}><BemForm bem={modal.id?modal:null} saving={saving} onSave={handleSave} onClose={()=>setModal(null)}/></Modal>}
+    </div>
+  );
+}
+
+function BemForm({ bem, saving, onSave, onClose }) {
+  const [form,setForm]=useState(bem?{ nome:bem.nome,marca:bem.marca||'',modelo:bem.modelo||'',numero_serie:bem.numero_serie||'',data_compra:bem.data_compra||'',valor:bem.valor,loja:bem.loja||'',categoria:bem.categoria,garantia_inicio:bem.garantia_inicio||'',garantia_fim:bem.garantia_fim||'',garantia_empresa:bem.garantia_empresa||'',garantia_contato:bem.garantia_contato||'',foto_path:bem.foto_path||'',nota_fiscal_path:bem.nota_fiscal_path||'' }:{ nome:'',marca:'',modelo:'',numero_serie:'',data_compra:todayStr(),valor:'',loja:'',categoria:BEM_CATEGORIAS[0],garantia_inicio:todayStr(),garantia_fim:addDays(365),garantia_empresa:'',garantia_contato:'',foto_path:'',nota_fiscal_path:'' });
+  const set=(k,v)=>setForm(f=>({...f,[k]:v}));
+  return (
+    <form onSubmit={e=>{e.preventDefault();onSave({...form,valor:Number(form.valor)||0,data_compra:form.data_compra||null,garantia_inicio:form.garantia_inicio||null,garantia_fim:form.garantia_fim||null});}} style={{ display:'flex', flexDirection:'column', gap:14 }}>
+      <div className="grid-2-1">
+        <Field label="Nome"><Input required value={form.nome} onChange={e=>set('nome',e.target.value)}/></Field>
+        <Field label="Categoria"><Select value={form.categoria} onChange={e=>set('categoria',e.target.value)}>{BEM_CATEGORIAS.map(c=><option key={c}>{c}</option>)}</Select></Field>
+      </div>
+      <div className="grid-3">
+        <Field label="Marca"><Input value={form.marca} onChange={e=>set('marca',e.target.value)}/></Field>
+        <Field label="Modelo"><Input value={form.modelo} onChange={e=>set('modelo',e.target.value)}/></Field>
+        <Field label="Nº série"><Input value={form.numero_serie} onChange={e=>set('numero_serie',e.target.value)}/></Field>
+      </div>
+      <div className="grid-3">
+        <Field label="Data da compra"><Input type="date" value={form.data_compra} onChange={e=>set('data_compra',e.target.value)}/></Field>
+        <Field label="Valor (R$)"><Input required type="number" step="0.01" min="0" value={form.valor} onChange={e=>set('valor',e.target.value)}/></Field>
+        <Field label="Loja"><Input value={form.loja} onChange={e=>set('loja',e.target.value)}/></Field>
+      </div>
+      <div style={{ borderTop:'1px solid var(--sm-border)', paddingTop:12 }}><div style={{ fontWeight:600, fontSize:13.5, marginBottom:10 }}>Garantia</div>
+        <div className="grid-2" style={{ marginBottom:12 }}>
+          <Field label="Início"><Input type="date" value={form.garantia_inicio} onChange={e=>set('garantia_inicio',e.target.value)}/></Field>
+          <Field label="Fim"><Input type="date" value={form.garantia_fim} onChange={e=>set('garantia_fim',e.target.value)}/></Field>
+        </div>
+        <div className="grid-2">
+          <Field label="Empresa"><Input value={form.garantia_empresa} onChange={e=>set('garantia_empresa',e.target.value)}/></Field>
+          <Field label="Contato"><Input value={form.garantia_contato} onChange={e=>set('garantia_contato',e.target.value)} placeholder="0800..."/></Field>
+        </div>
+      </div>
+      <div className="grid-2" style={{ borderTop:'1px solid var(--sm-border)', paddingTop:12 }}>
+        <FileUploader folder="patrimonio" value={form.foto_path} onUploadComplete={({ path }) => set('foto_path', path)} onRemove={() => set('foto_path', '')} label="Foto do bem (imagem)" accept="image/*" />
+        <FileUploader folder="patrimonio" value={form.nota_fiscal_path} onUploadComplete={({ path }) => set('nota_fiscal_path', path)} onRemove={() => set('nota_fiscal_path', '')} label="Nota fiscal (imagem, PDF, etc.)" />
+      </div>
+      <div style={{ display:'flex', justifyContent:'flex-end', gap:10, marginTop:6 }}><Btn variant="secondary" onClick={onClose}>Cancelar</Btn><Btn type="submit" disabled={saving}>{saving?'Salvando...':'Salvar'}</Btn></div>
+    </form>
+  );
+}
+
+// ── FAMÍLIA ────────────────────────────────────────────────────────────────
+export function FamiliaPage() {
+  const { familia, setFamilia } = useFamilia();
+  const [modal, setModal] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [actionError, setActionError] = useState('');
+  const PERM_TONE = { Administrador:'red', Morador:'blue', Colaborador:'neutral' };
+
+  const save = async (payload) => {
+    setSaving(true); setActionError('');
+    try {
+      if (modal?.id) { const u=await authApi.updateMember(modal.id,payload); setFamilia(familia.map(m=>m.id===modal.id?u:m)); }
+      else { const c=await authApi.createMember(payload); setFamilia([...familia,c]); }
+      setModal(null);
+    } catch(e){setActionError(e.message);} finally{setSaving(false);}
+  };
+
+  const remove = async (id) => {
+    try { await authApi.deleteMember(id); setFamilia(familia.filter(m=>m.id!==id)); } catch(e){setActionError(e.message);}
+  };
+
+  return (
+    <div className="fadein">
+      <SectionHeader title="Central da família" subtitle="Moradores, colaboradores e permissões de acesso." action={<Btn icon={Plus} onClick={()=>setModal({})}>Novo membro</Btn>}/>
+      {actionError && <ErrorBanner message={actionError}/>}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(150px,1fr))', gap:12, marginBottom:16 }}>
+        <Metric icon={Users} label="Total" value={familia.length}/>
+        <Metric icon={Shield} label="Administradores" value={familia.filter(m=>m.permissao==='Administrador').length} tone="red"/>
+        <Metric icon={Users} label="Moradores" value={familia.filter(m=>m.permissao==='Morador').length} tone="blue"/>
+        <Metric icon={Users} label="Colaboradores" value={familia.filter(m=>m.permissao==='Colaborador').length}/>
+      </div>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(280px,1fr))', gap:12 }}>
+        {familia.map(m=>(
+          <Card key={m.id}>
+            <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:10 }}>
+              <div style={{ display:'flex', gap:12 }}><Avatar name={m.nome} size={44}/><div><div style={{ fontWeight:600, fontSize:15 }}>{m.nome}</div><div style={{ fontSize:12.5, color:'var(--sm-text-soft)' }}>{m.funcao||'—'}</div></div></div>
+              <div style={{ display:'flex', gap:4 }}><IconBtn icon={Edit2} onClick={()=>setModal(m)}/><IconBtn icon={Trash2} tone="red" onClick={()=>remove(m.id)}/></div>
+            </div>
+            <div style={{ marginTop:12, display:'flex', flexDirection:'column', gap:6, fontSize:13 }}>
+              {m.telefone && <div style={{ display:'flex', alignItems:'center', gap:6, color:'var(--sm-text-soft)' }}><Phone size={14}/>{m.telefone}</div>}
+              {m.id && <div style={{ display:'flex', alignItems:'center', gap:6, color:'var(--sm-text-soft)' }}><Mail size={14}/>{m.id}</div>}
+            </div>
+            <div style={{ marginTop:10 }}><Badge tone={PERM_TONE[m.permissao]}>{m.permissao}</Badge></div>
+          </Card>
+        ))}
+      </div>
+      {modal!==null && <Modal title={modal.id?'Editar membro':'Convidar membro'} onClose={()=>setModal(null)}><MembroForm membro={modal.id?modal:null} saving={saving} onSave={save} onClose={()=>setModal(null)}/></Modal>}
+    </div>
+  );
+}
+
+function MembroForm({ membro, saving, onSave, onClose }) {
+  const [form,setForm]=useState(membro?{ nome:membro.nome,telefone:membro.telefone||'',email:'',funcao:membro.funcao||'',permissao:membro.permissao }:{ nome:'',telefone:'',email:'',funcao:'',permissao:'Morador',password:'' });
+  const set=(k,v)=>setForm(f=>({...f,[k]:v}));
+  return (
+    <form onSubmit={e=>{e.preventDefault();onSave(form);}} style={{ display:'flex', flexDirection:'column', gap:14 }}>
+      <Field label="Nome completo"><Input required value={form.nome} onChange={e=>set('nome',e.target.value)}/></Field>
+      <div className="grid-2">
+        <Field label="Telefone"><Input value={form.telefone} onChange={e=>set('telefone',e.target.value)}/></Field>
+        {!membro && <Field label="E-mail"><Input type="email" required value={form.email} onChange={e=>set('email',e.target.value)}/></Field>}
+      </div>
+      {!membro && <Field label="Senha"><Input type="password" required minLength={6} value={form.password} onChange={e=>set('password',e.target.value)} placeholder="Mínimo 6 caracteres"/></Field>}
+      <Field label="Função na casa"><Input value={form.funcao} onChange={e=>set('funcao',e.target.value)} placeholder="Ex: Mãe / Gestão da casa"/></Field>
+      <Field label="Permissão"><Select value={form.permissao} onChange={e=>set('permissao',e.target.value)}>{PERMISSOES.map(p=><option key={p}>{p}</option>)}</Select></Field>
+      <div style={{ display:'flex', justifyContent:'flex-end', gap:10, marginTop:6 }}><Btn variant="secondary" onClick={onClose}>Cancelar</Btn><Btn type="submit" disabled={saving}>{saving?'Salvando...':'Salvar'}</Btn></div>
+    </form>
+  );
+}
+
+// ── RELATÓRIOS ─────────────────────────────────────────────────────────────
+export function RelatoriosPage() {
+  const [rel, setRel] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  const load = async () => { setLoading(true); setError(''); try { setRel(await dashboardApi.relatorios()); } catch(e){setError(e.message);} finally{setLoading(false);} };
+  React.useEffect(()=>{load();},[]);
+
+  if (loading) return <LoadingScreen label="Carregando relatórios..."/>;
+  if (error) return <ErrorBanner message={error} onRetry={load}/>;
+  if (!rel) return null;
+
+  const fmtV = v => `R$${Number(v).toFixed(0)}`;
+
+  return (
+    <div className="fadein">
+      <SectionHeader title="Relatórios e indicadores" subtitle="Visão consolidada de gastos, consumo e patrimônio."/>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))', gap:12, marginBottom:16 }}>
+        <Metric icon={DollarSign} label="Gastos com contas" value={fmtMoney(rel.totais.contas)}/>
+        <Metric icon={Wrench} label="Gastos com veículos" value={fmtMoney(rel.totais.veiculos)} tone="blue"/>
+        <Metric icon={Award} label="Patrimônio total" value={fmtMoney(rel.totais.patrimonio)} tone="green"/>
+        <Metric icon={Package} label="Valor em estoque" value={fmtMoney(rel.totais.estoque)} tone="amber"/>
+      </div>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(150px,1fr))', gap:12, marginBottom:16 }}>
+        <Metric icon={CheckCircle2} label="Contas pagas" value={rel.contas_pagas} tone="green"/>
+        <Metric icon={Clock} label="Contas pendentes" value={rel.contas_pendentes} tone="amber"/>
+        <Metric icon={CheckCircle2} label="Tarefas concluídas" value={rel.tarefas_concluidas} tone="green"/>
+        <Metric icon={AlertTriangle} label="Tarefas pendentes" value={rel.tarefas_pendentes} tone="amber"/>
+      </div>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(320px,1fr))', gap:16 }}>
+        {rel.gastos_por_categoria_contas.length>0 && (
+          <Card>
+            <div style={{ fontWeight:600, fontSize:14, marginBottom:12 }}>Gastos por categoria — Contas</div>
+            <div style={{ width:'100%', height:240 }}>
+              <ResponsiveContainer><BarChart data={rel.gastos_por_categoria_contas} layout="vertical" margin={{ left:10, right:10 }}>
+                <XAxis type="number" tick={{ fontSize:11 }} tickFormatter={fmtV}/><YAxis type="category" dataKey="name" width={90} tick={{ fontSize:11 }}/>
+                <Tooltip formatter={v=>fmtMoney(v)} contentStyle={{ fontSize:12, borderRadius:8 }}/><Bar dataKey="valor" fill="#D32F2F" radius={[0,4,4,0]}/>
+              </BarChart></ResponsiveContainer>
+            </div>
+          </Card>
+        )}
+        {rel.valor_patrimonio_por_categoria.length>0 && (
+          <Card>
+            <div style={{ fontWeight:600, fontSize:14, marginBottom:12 }}>Patrimônio por categoria</div>
+            <div style={{ width:'100%', height:240 }}>
+              <ResponsiveContainer><PieChart>
+                <Pie data={rel.valor_patrimonio_por_categoria} dataKey="valor" nameKey="name" cx="50%" cy="50%" outerRadius={85} label={({name})=>name}>
+                  {rel.valor_patrimonio_por_categoria.map((_,i)=><Cell key={i} fill={COLORS[i%COLORS.length]}/>)}
+                </Pie><Tooltip formatter={v=>fmtMoney(v)} contentStyle={{ fontSize:12, borderRadius:8 }}/>
+              </PieChart></ResponsiveContainer>
+            </div>
+          </Card>
+        )}
+        {rel.gastos_por_veiculo.length>0 && (
+          <Card>
+            <div style={{ fontWeight:600, fontSize:14, marginBottom:12 }}>Gastos por veículo</div>
+            <div style={{ width:'100%', height:240 }}>
+              <ResponsiveContainer><BarChart data={rel.gastos_por_veiculo}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--sm-border)"/><XAxis dataKey="name" tick={{ fontSize:11 }}/><YAxis tick={{ fontSize:11 }} tickFormatter={fmtV}/>
+                <Tooltip formatter={v=>fmtMoney(v)} contentStyle={{ fontSize:12, borderRadius:8 }}/><Bar dataKey="valor" fill="#1565C0" radius={[4,4,0,0]}/>
+              </BarChart></ResponsiveContainer>
+            </div>
+          </Card>
+        )}
+        {rel.tempo_por_ambiente.length>0 && (
+          <Card>
+            <div style={{ fontWeight:600, fontSize:14, marginBottom:12 }}>Tempo gasto por ambiente (limpeza)</div>
+            <div style={{ width:'100%', height:240 }}>
+              <ResponsiveContainer><BarChart data={rel.tempo_por_ambiente}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--sm-border)"/><XAxis dataKey="name" tick={{ fontSize:11 }}/><YAxis tick={{ fontSize:11 }} tickFormatter={v=>`${v}min`}/>
+                <Tooltip formatter={v=>`${v} min`} contentStyle={{ fontSize:12, borderRadius:8 }}/><Bar dataKey="valor" fill="#2E7D32" radius={[4,4,0,0]}/>
+              </BarChart></ResponsiveContainer>
+            </div>
+          </Card>
+        )}
+      </div>
+    </div>
+  );
+}
