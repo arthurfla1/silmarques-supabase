@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Btn, Input, Field } from '../components/ui';
 import { supabase } from '../lib/supabase';
+import { authApi } from '../api/db';
 
 function AuthLayout({ children }) {
   return (
