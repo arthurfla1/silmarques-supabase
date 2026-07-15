@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
-import { Plus, Edit2, Trash2, Search, CheckCircle2, Circle, DollarSign, Clock, AlertTriangle, Package, ShoppingCart, Apple, Check, Sparkles, Car, Wrench, Shield, FileText, Award, Users, Phone, Mail, BarChart3, Download, MapPin, Receipt } from 'lucide-react';
+import { Plus, Edit2, Trash2, Search, CheckCircle2, Circle, DollarSign, Clock, AlertTriangle, Package, ShoppingCart, Apple, Check, Sparkles, Car, Wrench, Shield, FileText, Award, Users, Phone, Mail, BarChart3, Download, MapPin, Receipt, Link as LinkIcon } from 'lucide-react';
 import { contasApi, estoqueApi, comprasApi, limpezaApi, veiculosApi, documentosApi, patrimonioApi, authApi, dashboardApi } from '../api/db';
 import { useApiList } from '../hooks/useApiList';
 import { useFamilia } from '../context/contexts';
+import { useAuth } from '../context/AuthContext';
+
 import { Card, SectionHeader, Btn, Input, Select, Field, Modal, TextArea, Badge, IconBtn, EmptyState, Metric, ProgressBar, Avatar, LoadingScreen, ErrorBanner, FileUploader } from '../components/ui';
 import { CONTA_CATEGORIAS, ESTOQUE_CATEGORIAS, ESTOQUE_LOCAIS, LIMPEZA_AMBIENTES, LIMPEZA_FREQ, LIMPEZA_PRIORIDADES, VEICULO_CATEGORIAS, DOC_CATEGORIAS, BEM_CATEGORIAS, COMPRA_UNIDADES, MERCADO_CATEGORIAS, PERMISSOES, FEIRA_ITENS, CAR_BRANDS, fmtMoney, fmtDate, todayStr, addDays, daysUntil, downloadCSV } from '../lib/constants';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, CartesianGrid, LineChart, Line } from 'recharts';
@@ -932,10 +934,23 @@ function BemForm({ bem, saving, onSave, onClose }) {
 // ── FAMÍLIA ────────────────────────────────────────────────────────────────
 export function FamiliaPage() {
   const { familia, setFamilia } = useFamilia();
+  const { profile } = useAuth();
   const [modal, setModal] = useState(null);
   const [saving, setSaving] = useState(false);
   const [actionError, setActionError] = useState('');
+  const [copied, setCopied] = useState(false);
   const PERM_TONE = { Administrador:'red', Morador:'blue', Colaborador:'neutral' };
+
+  const inviteLink = profile?.household_id 
+    ? `${window.location.origin}/cadastro?convite=${profile.household_id}` 
+    : '';
+
+  const handleCopyInvite = () => {
+    if (!inviteLink) return;
+    navigator.clipboard.writeText(inviteLink);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   const save = async (payload) => {
     setSaving(true); setActionError('');
@@ -952,7 +967,20 @@ export function FamiliaPage() {
 
   return (
     <div className="fadein">
-      <SectionHeader title="Central da família" subtitle="Moradores, colaboradores e permissões de acesso." action={<Btn icon={Plus} onClick={()=>setModal({})}>Novo membro</Btn>}/>
+      <SectionHeader 
+        title="Central da família" 
+        subtitle="Moradores, colaboradores e permissões de acesso." 
+        action={
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            {inviteLink && (
+              <Btn variant="secondary" icon={LinkIcon} onClick={handleCopyInvite}>
+                {copied ? 'Copiado!' : 'Copiar Convite'}
+              </Btn>
+            )}
+            <Btn icon={Plus} onClick={()=>setModal({})}>Novo membro</Btn>
+          </div>
+        }
+      />
       {actionError && <ErrorBanner message={actionError}/>}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(150px,1fr))', gap:12, marginBottom:16 }}>
         <Metric icon={Users} label="Total" value={familia.length}/>

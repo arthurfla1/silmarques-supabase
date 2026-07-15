@@ -15,7 +15,7 @@ function check({ data, error }) {
 
 // ── AUTH ────────────────────────────────────────────────────
 export const authApi = {
-  async signup({ householdNome, nome, email, password, telefone, funcao }) {
+  async signup({ householdNome, nome, email, password, telefone, funcao, inviteHouseholdId }) {
     // 1. Cria o usuário no Supabase Auth
     const { data, error } = await supabase.auth.signUp({
       email,
@@ -26,19 +26,24 @@ export const authApi = {
 
     const userId = data.user.id;
 
-    // 2. Cria a household
-    const household = check(
-      await supabase.from('households').insert({ nome: householdNome }).select().single()
-    );
+    let householdId = inviteHouseholdId;
+
+    if (!householdId) {
+      // 2. Cria a household
+      const household = check(
+        await supabase.from('households').insert({ nome: householdNome }).select().single()
+      );
+      householdId = household.id;
+    }
 
     // 3. Atualiza o perfil gerado pelo trigger com household_id e dados extras
     check(
       await supabase.from('profiles').update({
-        household_id: household.id,
+        household_id: householdId,
         nome,
         telefone: telefone || null,
         funcao: funcao || null,
-        permissao: 'Administrador',
+        permissao: inviteHouseholdId ? 'Morador' : 'Administrador',
       }).eq('id', userId)
     );
 
