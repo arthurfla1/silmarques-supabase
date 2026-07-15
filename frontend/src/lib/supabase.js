@@ -3,15 +3,18 @@ import { createClient } from '@supabase/supabase-js';
 
 const sanitize = (val) => val ? String(val).trim().replace(/^["']|["']$/g, '') : '';
 
-const supabaseUrl = sanitize(import.meta.env.VITE_SUPABASE_URL) || 'https://zzpzvjueortfmcyfygef.supabase.co';
-const supabaseAnonKey = sanitize(import.meta.env.VITE_SUPABASE_ANON_KEY) || 'sb_publishable_CW-jQ0WUElcjI4yEf0PaMw_ujYlhUJ_';
+const rawUrl = sanitize(import.meta.env.VITE_SUPABASE_URL);
+const rawKey = sanitize(import.meta.env.VITE_SUPABASE_ANON_KEY);
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error(
-    'Variáveis VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY não configuradas.\n' +
-    'Crie o arquivo .env.local com os valores do seu projeto Supabase.'
-  );
-}
+// Se a URL estiver vazia ou não for um endereço web válido, usa a URL padrão da casa
+const supabaseUrl = (rawUrl.startsWith('http://') || rawUrl.startsWith('https://'))
+  ? rawUrl
+  : 'https://zzpzvjueortfmcyfygef.supabase.co';
+
+// Se a chave anônima estiver vazia ou for uma chave secreta (começando com sb_secret_ etc.), usa a chave pública padrão
+const supabaseAnonKey = (rawKey.startsWith('sb_publishable_') || rawKey.startsWith('eyJ'))
+  ? rawKey
+  : 'sb_publishable_CW-jQ0WUElcjI4yEf0PaMw_ujYlhUJ_';
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
