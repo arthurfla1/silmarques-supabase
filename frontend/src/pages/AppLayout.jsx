@@ -34,7 +34,16 @@ function NavItem({ item, onClick }) {
 function Footer({ user, theme, toggleTheme, logout }) {
   return (
     <div style={{ padding:12, borderTop:'1px solid var(--sm-border)', display:'flex', flexDirection:'column', gap:8 }}>
-      {user && <div style={{ fontSize:12.5, color:'var(--sm-text-soft)', padding:'0 4px' }}><div style={{ fontWeight:600, color:'var(--sm-text)' }}>{user.nome||user.email}</div><div>{user.permissao||'Membro'}</div></div>}
+      {user && (
+        <div style={{ fontSize:12.5, color:'var(--sm-text-soft)', padding:'0 4px' }}>
+          <div style={{ fontWeight:600, color:'var(--sm-text)' }}>{user.nome||user.email}</div>
+          <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:2 }}>
+            <span>{user.permissao||'Membro'}</span>
+            <span style={{ color:'var(--sm-text-faint)' }}>•</span>
+            <span style={{ fontWeight:600, color:'var(--sm-red)' }}>{user.household_nome || 'SilMarques'}</span>
+          </div>
+        </div>
+      )}
       <button onClick={toggleTheme} style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 12px', borderRadius:10, border:'1px solid var(--sm-border)', background:'transparent', color:'var(--sm-text)', fontSize:13.5, fontWeight:600 }}>
         {theme==='light'?<Moon size={17}/>:<Sun size={17}/>}{theme==='light'?'Modo escuro':'Modo claro'}
       </button>

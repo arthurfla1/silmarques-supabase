@@ -68,7 +68,13 @@ export const authApi = {
   async getProfile() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return null;
-    return check(await supabase.from('profiles').select('*').eq('id', user.id).single());
+    const profile = check(
+      await supabase.from('profiles').select('*, households(nome)').eq('id', user.id).single()
+    );
+    return {
+      ...profile,
+      household_nome: profile.households?.nome || 'Minha Residência'
+    };
   },
 
   async getMembers() {

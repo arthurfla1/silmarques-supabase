@@ -50,7 +50,16 @@ export function DashboardPage() {
 
   return (
     <div className="fadein">
-      <SectionHeader title={`Olá, ${profile?.nome?.split(' ')[0] || 'família'} 👋`} subtitle={`Hoje é ${new Date().toLocaleDateString('pt-BR')} — aqui está o resumo da casa.`}/>
+      <SectionHeader 
+        title={`Olá, ${profile?.nome?.split(' ')[0] || 'família'} 👋`} 
+        subtitle={`Hoje é ${new Date().toLocaleDateString('pt-BR')} — aqui está o resumo da casa.`}
+        action={
+          <div style={{ background:'var(--sm-surface)', border:'1px solid var(--sm-border)', borderRadius:12, padding:'8px 16px', display:'flex', alignItems:'center', gap:8, fontWeight:600, fontSize:13.5, color:'var(--sm-text)' }}>
+            <span style={{ color:'var(--sm-text-soft)' }}>Residência:</span>
+            <span style={{ color:'var(--sm-red)', fontWeight:700 }}>{profile?.household_nome || 'Família SilMarques'}</span>
+          </div>
+        }
+      />
 
       <div style={{ display:'grid', gridTemplateColumns:'minmax(200px,280px) 1fr', gap:16, marginBottom:16 }} className="dash-top">
         <Card style={{ display:'flex', alignItems:'center', justifyContent:'center' }}><HealthRing pct={health_pct}/></Card>
