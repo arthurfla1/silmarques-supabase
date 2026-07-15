@@ -44,7 +44,14 @@ export function LoginPage() {
       <p style={{ color:'var(--sm-text-soft)', fontSize:14, margin:'0 0 24px' }}>Entre para acessar a gestão da sua residência.</p>
       <form onSubmit={submit} style={{ display:'flex', flexDirection:'column', gap:14 }}>
         <Field label="E-mail"><Input type="email" required autoFocus value={email} onChange={e=>setEmail(e.target.value)} placeholder="voce@email.com"/></Field>
-        <Field label="Senha"><Input type="password" required value={password} onChange={e=>setPassword(e.target.value)} placeholder="••••••••"/></Field>
+        <Field label="Senha">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <Input type="password" required value={password} onChange={e=>setPassword(e.target.value)} placeholder="••••••••"/>
+            <div style={{ textAlign: 'right' }}>
+              <Link to="/recuperar" style={{ color: 'var(--sm-text-soft)', fontSize: 12.5, textDecoration: 'none', fontWeight: 500 }}>Esqueci minha senha</Link>
+            </div>
+          </div>
+        </Field>
         <ErrorMsg msg={error}/>
         <Btn type="submit" disabled={loading} style={{ width:'100%', marginTop:6 }}>{loading?'Entrando...':'Entrar'}</Btn>
       </form>
@@ -125,6 +132,101 @@ export function SignupPage() {
       <p style={{ textAlign:'center', fontSize:13.5, color:'var(--sm-text-soft)', marginTop:20 }}>
         Já tem conta? <Link to="/login" style={{ color:'var(--sm-red)', fontWeight:600, textDecoration:'none' }}>Entrar</Link>
       </p>
+    </AuthLayout>
+  );
+}
+
+export function ResetPasswordRequestPage() {
+  const [email, setEmail] = useState('');
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const submit = async (e) => {
+    e.preventDefault(); setError(''); setSuccess(''); setLoading(true);
+    try {
+      await authApi.resetPasswordForEmail(email);
+      setSuccess('Link de recuperação enviado! Verifique sua caixa de entrada.');
+    } catch (e) {
+      setError(e.message || 'Não foi possível enviar o e-mail de recuperação.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <AuthLayout>
+      <h1 style={{ fontSize:22, fontWeight:700, margin:'0 0 4px' }}>Recuperar senha</h1>
+      <p style={{ color:'var(--sm-text-soft)', fontSize:14, margin:'0 0 24px' }}>Digite seu e-mail para receber um link de redefinição.</p>
+      {success ? (
+        <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
+          <div style={{ color:'var(--sm-green)', fontSize:13.5, background:'var(--sm-green-light)', borderRadius:8, padding:'10px 14px', border:'1px solid var(--sm-border)' }}>
+            {success}
+          </div>
+          <Link to="/login" style={{ textAlign:'center', color:'var(--sm-red)', fontWeight:600, textDecoration:'none', fontSize:14 }}>Voltar para o Login</Link>
+        </div>
+      ) : (
+        <form onSubmit={submit} style={{ display:'flex', flexDirection:'column', gap:14 }}>
+          <Field label="E-mail"><Input type="email" required autoFocus value={email} onChange={e=>setEmail(e.target.value)} placeholder="voce@email.com"/></Field>
+          <ErrorMsg msg={error}/>
+          <Btn type="submit" disabled={loading} style={{ width:'100%', marginTop:6 }}>{loading?'Enviando...':'Enviar link de recuperação'}</Btn>
+          <p style={{ textAlign:'center', fontSize:13.5, color:'var(--sm-text-soft)', marginTop:10 }}>
+            Lembrou da senha? <Link to="/login" style={{ color:'var(--sm-red)', fontWeight:600, textDecoration:'none' }}>Voltar para o Login</Link>
+          </p>
+        </form>
+      )}
+    </AuthLayout>
+  );
+}
+
+export function ResetPasswordFormPage() {
+  const navigate = useNavigate();
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const submit = async (e) => {
+    e.preventDefault(); setError(''); setSuccess('');
+    if (password.length < 6) {
+      setError('A senha deve ter pelo menos 6 caracteres.');
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError('As senhas não coincidem.');
+      return;
+    }
+    setLoading(true);
+    try {
+      await authApi.updatePassword(password);
+      setSuccess('Senha alterada com sucesso! Você será redirecionado...');
+      setTimeout(() => {
+        navigate('/');
+      }, 2000);
+    } catch (e) {
+      setError(e.message || 'Não foi possível alterar a senha.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <AuthLayout>
+      <h1 style={{ fontSize:22, fontWeight:700, margin:'0 0 4px' }}>Nova senha</h1>
+      <p style={{ color:'var(--sm-text-soft)', fontSize:14, margin:'0 0 24px' }}>Digite e confirme sua nova senha de acesso.</p>
+      {success ? (
+        <div style={{ color:'var(--sm-green)', fontSize:13.5, background:'var(--sm-green-light)', borderRadius:8, padding:'10px 14px', border:'1px solid var(--sm-border)' }}>
+          {success}
+        </div>
+      ) : (
+        <form onSubmit={submit} style={{ display:'flex', flexDirection:'column', gap:14 }}>
+          <Field label="Nova senha"><Input type="password" required minLength={6} autoFocus value={password} onChange={e=>setPassword(e.target.value)} placeholder="Mínimo 6 caracteres"/></Field>
+          <Field label="Confirmar nova senha"><Input type="password" required minLength={6} value={confirmPassword} onChange={e=>setConfirmPassword(e.target.value)} placeholder="Confirme a nova senha"/></Field>
+          <ErrorMsg msg={error}/>
+          <Btn type="submit" disabled={loading} style={{ width:'100%', marginTop:6 }}>{loading?'Alterando...':'Salvar nova senha'}</Btn>
+        </form>
+      )}
     </AuthLayout>
   );
 }

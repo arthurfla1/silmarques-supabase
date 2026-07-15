@@ -119,6 +119,14 @@ export const authApi = {
     if (error) throw new Error(error.message);
     return true;
   },
+
+  async resetPasswordForEmail(email) {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/redefinir-senha`,
+    });
+    if (error) throw new Error(error.message);
+    return true;
+  },
 };
 
 // ── CRUD GENÉRICO ────────────────────────────────────────────

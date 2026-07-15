@@ -6,7 +6,7 @@ import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider, FamiliaProvider } from './context/contexts';
 import { ProtectedRoute, DashboardPage } from './pages/DashboardPage';
 import AppLayout from './pages/AppLayout';
-import { LoginPage, SignupPage } from './pages/AuthPages';
+import { LoginPage, SignupPage, ResetPasswordRequestPage, ResetPasswordFormPage } from './pages/AuthPages';
 import {
   ContasPage, EstoquePage, ComprasPage, LimpezaPage, VeiculosPage,
   DocumentosPage, PatrimonioPage, FamiliaPage, RelatoriosPage,
@@ -21,6 +21,8 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/cadastro" element={<SignupPage />} />
+            <Route path="/recuperar" element={<ResetPasswordRequestPage />} />
+            <Route path="/redefinir-senha" element={<ResetPasswordFormPage />} />
             <Route path="/" element={
               <ProtectedRoute>
                 <FamiliaProvider>
