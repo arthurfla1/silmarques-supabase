@@ -7,9 +7,10 @@ import { Card, SectionHeader, Metric, EmptyState, Badge, Row, HealthRing, Loadin
 import { fmtMoney } from '../lib/constants';
 
 export function ProtectedRoute({ children }) {
-  const { user, loading } = useAuth();
+  const { user, profile, loading } = useAuth();
   if (loading) return <LoadingScreen label="Carregando Família SilMarques..."/>;
   if (!user) return <Navigate to="/login" replace/>;
+  if (profile && profile.status === 'pendente') return <Navigate to="/aguardando-aprovacao" replace/>;
   return children;
 }
 

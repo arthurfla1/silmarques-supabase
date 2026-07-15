@@ -27,6 +27,7 @@ create table if not exists profiles (
   telefone text,
   funcao text,
   permissao text not null default 'Morador' check (permissao in ('Administrador','Morador','Colaborador')),
+  status text not null default 'aprovado' check (status in ('pendente','aprovado','rejeitado')),
   created_at timestamptz default now()
 );
 

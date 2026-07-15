@@ -161,7 +161,7 @@ function ContaForm({ conta, familia, saving, onSave, onClose }) {
         <Field label="Vencimento"><Input required type="date" value={form.vencimento} onChange={e=>set('vencimento',e.target.value)}/></Field>
         <Field label="Forma"><Select value={form.forma} onChange={e=>set('forma',e.target.value)}>{['Boleto','Débito automático','Cartão','Pix','Dinheiro'].map(f=><option key={f}>{f}</option>)}</Select></Field>
       </div>
-      <Field label="Responsável"><Select value={form.responsavel} onChange={e=>set('responsavel',e.target.value)}><option value="">—</option>{familia.map(m=><option key={m.id} value={m.nome}>{m.nome}</option>)}</Select></Field>
+      <Field label="Responsável"><Select value={form.responsavel} onChange={e=>set('responsavel',e.target.value)}><option value="">—</option>{familia.filter(m=>m.status!=='pendente').map(m=><option key={m.id} value={m.nome}>{m.nome}</option>)}</Select></Field>
       <label style={{ display:'flex', alignItems:'center', gap:8, fontSize:14 }}><input type="checkbox" checked={form.status==='paga'} onChange={e=>set('status',e.target.checked?'paga':'pendente')}/> Marcar como paga</label>
       <div style={{ display:'flex', justifyContent:'flex-end', gap:10, marginTop:6 }}>
         <Btn variant="secondary" onClick={onClose}>Cancelar</Btn>
@@ -516,7 +516,7 @@ function LimpezaForm({ tarefa, familia, saving, onSave, onClose }) {
       <div className="grid-3">
         <Field label="Prioridade"><Select value={form.prioridade} onChange={e=>set('prioridade',e.target.value)}>{LIMPEZA_PRIORIDADES.map(p=><option key={p}>{p}</option>)}</Select></Field>
         <Field label="Tempo (min)"><Input required type="number" min="1" value={form.tempo_estimado} onChange={e=>set('tempo_estimado',e.target.value)}/></Field>
-        <Field label="Responsável"><Select value={form.responsavel} onChange={e=>set('responsavel',e.target.value)}><option value="">—</option>{familia.map(m=><option key={m.id} value={m.nome}>{m.nome}</option>)}</Select></Field>
+        <Field label="Responsável"><Select value={form.responsavel} onChange={e=>set('responsavel',e.target.value)}><option value="">—</option>{familia.filter(m=>m.status!=='pendente').map(m=><option key={m.id} value={m.nome}>{m.nome}</option>)}</Select></Field>
       </div>
       <div style={{ display:'flex', justifyContent:'flex-end', gap:10, marginTop:6 }}><Btn variant="secondary" onClick={onClose}>Cancelar</Btn><Btn type="submit" disabled={saving}>{saving?'Salvando...':'Salvar'}</Btn></div>
     </form>
@@ -799,7 +799,7 @@ function DocForm({ doc, familia, saving, onSave, onClose }) {
         <Field label="Data de emissão"><Input type="date" value={form.emissao} onChange={e=>set('emissao',e.target.value)}/></Field>
         <Field label="Vencimento (opcional)"><Input type="date" value={form.vencimento} onChange={e=>set('vencimento',e.target.value)}/></Field>
       </div>
-      <Field label="Responsável"><Select value={form.responsavel} onChange={e=>set('responsavel',e.target.value)}><option value="">—</option>{familia.map(m=><option key={m.id} value={m.nome}>{m.nome}</option>)}</Select></Field>
+      <Field label="Responsável"><Select value={form.responsavel} onChange={e=>set('responsavel',e.target.value)}><option value="">—</option>{familia.filter(m=>m.status!=='pendente').map(m=><option key={m.id} value={m.nome}>{m.nome}</option>)}</Select></Field>
       <Field label="Tags (separadas por vírgula)"><Input value={form.tagsStr} onChange={e=>set('tagsStr',e.target.value)} placeholder="Ex: imóvel, importante"/></Field>
       <FileUploader folder="documentos" value={form.arquivo_path} onUploadComplete={({ path }) => set('arquivo_path', path)} onRemove={() => set('arquivo_path', '')} label="Documento (PDF, Imagem, etc.)" />
       <div style={{ display:'flex', justifyContent:'flex-end', gap:10, marginTop:6 }}><Btn variant="secondary" onClick={onClose}>Cancelar</Btn><Btn type="submit" disabled={saving}>{saving?'Salvando...':'Salvar'}</Btn></div>
@@ -965,6 +965,29 @@ export function FamiliaPage() {
     try { await authApi.deleteMember(id); setFamilia(familia.filter(m=>m.id!==id)); } catch(e){setActionError(e.message);}
   };
 
+  const approve = async (id) => {
+    setActionError('');
+    try {
+      const u = await authApi.updateMember(id, { status: 'aprovado' });
+      setFamilia(familia.map(m => m.id === id ? u : m));
+    } catch(e) {
+      setActionError(e.message);
+    }
+  };
+
+  const reject = async (id) => {
+    setActionError('');
+    try {
+      await authApi.deleteMember(id);
+      setFamilia(familia.filter(m => m.id !== id));
+    } catch(e) {
+      setActionError(e.message);
+    }
+  };
+
+  const ativos = familia.filter(m => m.status !== 'pendente');
+  const pendentes = familia.filter(m => m.status === 'pendente');
+
   return (
     <div className="fadein">
       <SectionHeader 
@@ -982,14 +1005,40 @@ export function FamiliaPage() {
         }
       />
       {actionError && <ErrorBanner message={actionError}/>}
+
+      {pendentes.length > 0 && (
+        <div style={{ marginBottom: 28, background: 'var(--sm-red-light)', border: '1px solid var(--sm-border)', borderRadius: 'var(--radius-lg)', padding: '16px 20px' }}>
+          <h3 style={{ fontSize: 15.5, fontWeight: 700, color: 'var(--sm-red)', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8, margin: '0 0 14px' }}>
+            <Clock size={18} /> Solicitações de entrada pendentes ({pendentes.length})
+          </h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))', gap: 12 }}>
+            {pendentes.map(m => (
+              <Card key={m.id} style={{ background: 'var(--sm-surface)', border: '1px solid var(--sm-border)' }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
+                  <div style={{ display: 'flex', gap: 12 }}><Avatar name={m.nome} size={44}/><div><div style={{ fontWeight:600, fontSize:15 }}>{m.nome}</div><div style={{ fontSize:12.5, color:'var(--sm-text-soft)' }}>{m.funcao||'—'}</div></div></div>
+                </div>
+                <div style={{ marginTop:12, display:'flex', flexDirection:'column', gap:6, fontSize:13 }}>
+                  {m.telefone && <div style={{ display:'flex', alignItems:'center', gap:6, color:'var(--sm-text-soft)' }}><Phone size={14}/>{m.telefone}</div>}
+                  {m.id && <div style={{ display:'flex', alignItems:'center', gap:6, color:'var(--sm-text-soft)' }}><Mail size={14}/>{m.id}</div>}
+                </div>
+                <div style={{ marginTop:14, display:'flex', gap:10 }}>
+                  <Btn style={{ flex: 1 }} onClick={() => approve(m.id)}>Aprovar</Btn>
+                  <Btn style={{ flex: 1 }} variant="secondary" onClick={() => reject(m.id)}>Recusar</Btn>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(150px,1fr))', gap:12, marginBottom:16 }}>
-        <Metric icon={Users} label="Total" value={familia.length}/>
-        <Metric icon={Shield} label="Administradores" value={familia.filter(m=>m.permissao==='Administrador').length} tone="red"/>
-        <Metric icon={Users} label="Moradores" value={familia.filter(m=>m.permissao==='Morador').length} tone="blue"/>
-        <Metric icon={Users} label="Colaboradores" value={familia.filter(m=>m.permissao==='Colaborador').length}/>
+        <Metric icon={Users} label="Total" value={ativos.length}/>
+        <Metric icon={Shield} label="Administradores" value={ativos.filter(m=>m.permissao==='Administrador').length} tone="red"/>
+        <Metric icon={Users} label="Moradores" value={ativos.filter(m=>m.permissao==='Morador').length} tone="blue"/>
+        <Metric icon={Users} label="Colaboradores" value={ativos.filter(m=>m.permissao==='Colaborador').length}/>
       </div>
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(280px,1fr))', gap:12 }}>
-        {familia.map(m=>(
+        {ativos.map(m=>(
           <Card key={m.id}>
             <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:10 }}>
               <div style={{ display:'flex', gap:12 }}><Avatar name={m.nome} size={44}/><div><div style={{ fontWeight:600, fontSize:15 }}>{m.nome}</div><div style={{ fontSize:12.5, color:'var(--sm-text-soft)' }}>{m.funcao||'—'}</div></div></div>

@@ -231,3 +231,26 @@ export function ResetPasswordFormPage() {
     </AuthLayout>
   );
 }
+
+export function PendingApprovalPage() {
+  const { logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login');
+  };
+
+  return (
+    <AuthLayout>
+      <div style={{ textAlign: 'center', padding: '10px 0' }}>
+        <div style={{ fontSize: 48, marginBottom: 16 }}>⏳</div>
+        <h1 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 8px' }}>Conta em análise</h1>
+        <p style={{ color: 'var(--sm-text-soft)', fontSize: 14.5, lineHeight: 1.5, margin: '0 0 24px' }}>
+          O administrador da sua residência precisa aprovar seu acesso. Entre em contato com ele e aguarde a liberação.
+        </p>
+        <Btn variant="secondary" onClick={handleLogout} style={{ width: '100%' }}>Voltar para o Login</Btn>
+      </div>
+    </AuthLayout>
+  );
+}

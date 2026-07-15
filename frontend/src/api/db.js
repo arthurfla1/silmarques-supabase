@@ -44,6 +44,7 @@ export const authApi = {
         telefone: telefone || null,
         funcao: funcao || null,
         permissao: inviteHouseholdId ? 'Morador' : 'Administrador',
+        status: inviteHouseholdId ? 'pendente' : 'aprovado',
       }).eq('id', userId)
     );
 
