@@ -113,6 +113,12 @@ export const authApi = {
   async deleteMember(id) {
     check(await supabase.from('profiles').delete().eq('id', id));
   },
+
+  async updatePassword(newPassword) {
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) throw new Error(error.message);
+    return true;
+  },
 };
 
 // ── CRUD GENÉRICO ────────────────────────────────────────────

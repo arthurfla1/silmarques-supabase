@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { Home, Receipt, ShoppingCart, Package, Sparkles, Car, FileText, Award, Users, BarChart3, Menu, X, Sun, Moon, LogOut } from 'lucide-react';
+import { Home, Receipt, ShoppingCart, Package, Sparkles, Car, FileText, Award, Users, BarChart3, Menu, X, Sun, Moon, LogOut, Key } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/contexts';
+import { authApi } from '../api/db';
+import { Modal, Field, Input, Btn, ErrorBanner } from '../components/ui';
 
 const NAV = [
   { to:'/', label:'Início', icon:Home, end:true },
@@ -31,7 +33,7 @@ function NavItem({ item, onClick }) {
   );
 }
 
-function Footer({ user, theme, toggleTheme, logout }) {
+function Footer({ user, theme, toggleTheme, logout, onChangePassword }) {
   return (
     <div style={{ padding:12, borderTop:'1px solid var(--sm-border)', display:'flex', flexDirection:'column', gap:8 }}>
       {user && (
@@ -44,6 +46,9 @@ function Footer({ user, theme, toggleTheme, logout }) {
           </div>
         </div>
       )}
+      <button onClick={onChangePassword} style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 12px', borderRadius:10, border:'1px solid var(--sm-border)', background:'transparent', color:'var(--sm-text)', fontSize:13.5, fontWeight:600 }}>
+        <Key size={17}/>Alterar senha
+      </button>
       <button onClick={toggleTheme} style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 12px', borderRadius:10, border:'1px solid var(--sm-border)', background:'transparent', color:'var(--sm-text)', fontSize:13.5, fontWeight:600 }}>
         {theme==='light'?<Moon size={17}/>:<Sun size={17}/>}{theme==='light'?'Modo escuro':'Modo claro'}
       </button>
@@ -54,7 +59,7 @@ function Footer({ user, theme, toggleTheme, logout }) {
   );
 }
 
-function Sidebar({ profile, theme, toggleTheme, logout, onClose }) {
+function Sidebar({ profile, theme, toggleTheme, logout, onClose, onChangePassword }) {
   return (
     <aside style={{ width:232, display:'flex', flexDirection:'column', height:'100%', background:'var(--sm-surface)' }}>
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'22px 20px 18px' }}>
@@ -67,7 +72,7 @@ function Sidebar({ profile, theme, toggleTheme, logout, onClose }) {
       <nav style={{ flex:1, padding:'4px 12px', display:'flex', flexDirection:'column', gap:2, overflowY:'auto' }}>
         {NAV.map(item => <NavItem key={item.to} item={item} onClick={onClose}/>)}
       </nav>
-      <Footer user={profile} theme={theme} toggleTheme={toggleTheme} logout={logout}/>
+      <Footer user={profile} theme={theme} toggleTheme={toggleTheme} logout={logout} onChangePassword={onChangePassword}/>
     </aside>
   );
 }
@@ -77,6 +82,7 @@ export default function AppLayout() {
   const { theme, toggleTheme } = useTheme();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [showChangePassword, setShowChangePassword] = useState(false);
   const location = useLocation();
   const currentNav = NAV.find(n => n.end ? location.pathname === n.to : location.pathname.startsWith(n.to)) || NAV[0];
 
@@ -84,14 +90,14 @@ export default function AppLayout() {
     <div style={{ display:'flex', minHeight:'100vh' }}>
       {/* Desktop sidebar */}
       <div className="sm-sidebar" style={{ width:232, flexShrink:0, borderRight:'1px solid var(--sm-border)', position:'sticky', top:0, height:'100vh' }}>
-        <Sidebar profile={profile} theme={theme} toggleTheme={toggleTheme} logout={logout}/>
+        <Sidebar profile={profile} theme={theme} toggleTheme={toggleTheme} logout={logout} onChangePassword={() => setShowChangePassword(true)}/>
       </div>
 
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div onClick={()=>setSidebarOpen(false)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.4)', zIndex:90 }}>
           <div onClick={e=>e.stopPropagation()} style={{ position:'fixed', left:0, top:0, width:240, height:'100vh', zIndex:91 }}>
-            <Sidebar profile={profile} theme={theme} toggleTheme={toggleTheme} logout={logout} onClose={()=>setSidebarOpen(false)}/>
+            <Sidebar profile={profile} theme={theme} toggleTheme={toggleTheme} logout={logout} onClose={()=>setSidebarOpen(false)} onChangePassword={() => { setSidebarOpen(false); setShowChangePassword(true); }}/>
           </div>
         </div>
       )}
@@ -146,6 +152,12 @@ export default function AppLayout() {
         </div>
       )}
 
+      {showChangePassword && (
+        <Modal title="Alterar senha" onClose={() => setShowChangePassword(false)}>
+          <ChangePasswordForm onClose={() => setShowChangePassword(false)} />
+        </Modal>
+      )}
+
       <style>{`
         @media(max-width:880px){
           .sm-sidebar{display:none!important;}
@@ -155,5 +167,81 @@ export default function AppLayout() {
         }
       `}</style>
     </div>
+  );
+}
+
+function ChangePasswordForm({ onClose }) {
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+
+    if (password.length < 6) {
+      setError('A senha deve ter pelo menos 6 caracteres.');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError('As senhas não coincidem.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await authApi.updatePassword(password);
+      setSuccess('Senha alterada com sucesso!');
+      setTimeout(() => {
+        onClose();
+      }, 1500);
+    } catch (err) {
+      setError(err.message || 'Erro ao alterar senha.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} style={{ display:'flex', flexDirection:'column', gap:14 }}>
+      {error && <ErrorBanner message={error} />}
+      {success && (
+        <div style={{ color:'var(--sm-green)', fontSize:13.5, background:'var(--sm-green-light)', borderRadius:8, padding:'8px 12px', border:'1px solid var(--sm-border)' }}>
+          {success}
+        </div>
+      )}
+      
+      <Field label="Nova senha">
+        <Input 
+          type="password" 
+          required 
+          minLength={6} 
+          value={password} 
+          onChange={e=>setPassword(e.target.value)} 
+          placeholder="Mínimo 6 caracteres"
+          autoFocus
+        />
+      </Field>
+
+      <Field label="Confirmar nova senha">
+        <Input 
+          type="password" 
+          required 
+          minLength={6} 
+          value={confirmPassword} 
+          onChange={e=>setConfirmPassword(e.target.value)} 
+          placeholder="Repita a nova senha"
+        />
+      </Field>
+
+      <div style={{ display:'flex', justifyContent:'flex-end', gap:10, marginTop:6 }}>
+        <Btn variant="secondary" onClick={onClose} disabled={loading}>Cancelar</Btn>
+        <Btn type="submit" disabled={loading}>{loading ? 'Salvando...' : 'Alterar Senha'}</Btn>
+      </div>
+    </form>
   );
 }
