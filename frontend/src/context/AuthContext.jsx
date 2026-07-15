@@ -24,8 +24,11 @@ export function AuthProvider({ children }) {
     supabase.auth.getSession().then(({ data: { session } }) => {
       loadProfile(session?.user || null).finally(() => setLoading(false));
     });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       loadProfile(session?.user || null);
+      if (event === 'PASSWORD_RECOVERY') {
+        window.location.href = '/redefinir-senha';
+      }
     });
     return () => subscription.unsubscribe();
   }, []);
