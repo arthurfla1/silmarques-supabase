@@ -29,6 +29,7 @@ create table if not exists profiles (
   permissao text not null default 'Morador' check (permissao in ('Administrador','Morador','Colaborador')),
   status text not null default 'aprovado' check (status in ('pendente','aprovado','rejeitado')),
   avatar_url text,
+  modulos text,
   created_at timestamptz default now()
 );
 

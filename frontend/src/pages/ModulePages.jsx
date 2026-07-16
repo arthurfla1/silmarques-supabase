@@ -1157,26 +1157,110 @@ export function FamiliaPage() {
     </div>
   );
 }
+const ALL_MODULES = [
+  { id: 'contas', label: 'Contas' },
+  { id: 'compras', label: 'Compras' },
+  { id: 'estoque', label: 'Estoque' },
+  { id: 'limpeza', label: 'Limpeza' },
+  { id: 'veiculos', label: 'Veículos' },
+  { id: 'documentos', label: 'Documentos' },
+  { id: 'patrimonio', label: 'Patrimônio' },
+  { id: 'familia', label: 'Família' },
+  { id: 'relatorios', label: 'Relatórios' }
+];
+
+const getDefaultModulesForRole = (role) => {
+  if (role === 'Administrador') {
+    return 'contas,compras,estoque,limpeza,veiculos,documentos,patrimonio,familia,relatorios';
+  }
+  if (role === 'Morador') {
+    return 'contas,compras,estoque,limpeza,veiculos,documentos,patrimonio';
+  }
+  if (role === 'Colaborador') {
+    return 'compras,estoque,limpeza';
+  }
+  return '';
+};
 
 function MembroForm({ membro, saving, onSave, onClose }) {
-  const [form,setForm]=useState(membro?{ nome:membro.nome,telefone:membro.telefone||'',email:'',funcao:membro.funcao||'',permissao:membro.permissao,avatar_url:membro.avatar_url||'' }:{ nome:'',telefone:'',email:'',funcao:'',permissao:'Morador',password:'',avatar_url:'' });
-  const set=(k,v)=>setForm(f=>({...f,[k]:v}));
+  const [form, setForm] = useState(membro ? {
+    nome: membro.nome,
+    telefone: membro.telefone || '',
+    email: '',
+    funcao: membro.funcao || '',
+    permissao: membro.permissao,
+    avatar_url: membro.avatar_url || '',
+    modulos: membro.modulos !== undefined && membro.modulos !== null ? membro.modulos : getDefaultModulesForRole(membro.permissao)
+  } : {
+    nome: '',
+    telefone: '',
+    email: '',
+    funcao: '',
+    permissao: 'Morador',
+    password: '',
+    avatar_url: '',
+    modulos: getDefaultModulesForRole('Morador')
+  });
+
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  const handleRoleChange = (newRole) => {
+    setForm(f => ({
+      ...f,
+      permissao: newRole,
+      modulos: getDefaultModulesForRole(newRole)
+    }));
+  };
+
   return (
-    <form onSubmit={e=>{e.preventDefault();onSave(form);}} style={{ display:'flex', flexDirection:'column', gap:14 }}>
-      <Field label="Nome completo"><Input required value={form.nome} onChange={e=>set('nome',e.target.value)}/></Field>
+    <form onSubmit={e => { e.preventDefault(); onSave(form); }} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <Field label="Nome completo"><Input required value={form.nome} onChange={e => set('nome', e.target.value)} /></Field>
       <div className="grid-2">
-        <Field label="Telefone"><Input value={form.telefone} onChange={e=>set('telefone',e.target.value)}/></Field>
-        {!membro && <Field label="E-mail"><Input type="email" required value={form.email} onChange={e=>set('email',e.target.value)}/></Field>}
+        <Field label="Telefone"><Input value={form.telefone} onChange={e => set('telefone', e.target.value)} /></Field>
+        {!membro && <Field label="E-mail"><Input type="email" required value={form.email} onChange={e => set('email', e.target.value)} /></Field>}
       </div>
-      {!membro && <Field label="Senha"><Input type="password" required minLength={6} value={form.password} onChange={e=>set('password',e.target.value)} placeholder="Mínimo 6 caracteres"/></Field>}
-      <Field label="Função na casa"><Input value={form.funcao} onChange={e=>set('funcao',e.target.value)} placeholder="Ex: Mãe / Gestão da casa"/></Field>
-      <Field label="Permissão"><Select value={form.permissao} onChange={e=>set('permissao',e.target.value)}>{PERMISSOES.map(p=><option key={p}>{p}</option>)}</Select></Field>
+      {!membro && <Field label="Senha"><Input type="password" required minLength={6} value={form.password} onChange={e => set('password', e.target.value)} placeholder="Mínimo 6 caracteres" /></Field>}
+      <Field label="Função na casa"><Input value={form.funcao} onChange={e => set('funcao', e.target.value)} placeholder="Ex: Mãe / Gestão da casa" /></Field>
+      <Field label="Permissão"><Select value={form.permissao} onChange={e => handleRoleChange(e.target.value)}>{PERMISSOES.map(p => <option key={p}>{p}</option>)}</Select></Field>
+      
+      <Field label="Módulos autorizados (Acesso personalizado)">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 10, background: 'var(--sm-bg)', border: '1px solid var(--sm-border)', borderRadius: 'var(--radius-md)', padding: 12, marginTop: 4 }}>
+          {ALL_MODULES.map(m => {
+            const isChecked = (form.modulos || '').split(',').includes(m.id);
+            return (
+              <label key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 550, color: 'var(--sm-text)', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={isChecked}
+                  onChange={e => {
+                    const currentList = (form.modulos || '').split(',').filter(x => x);
+                    let newList;
+                    if (e.target.checked) {
+                      newList = [...currentList, m.id];
+                    } else {
+                      newList = currentList.filter(x => x !== m.id);
+                    }
+                    set('modulos', newList.join(','));
+                  }}
+                  style={{
+                    width: 15,
+                    height: 15,
+                    accentColor: 'var(--sm-red)',
+                    cursor: 'pointer'
+                  }}
+                />
+                {m.label}
+              </label>
+            );
+          })}
+        </div>
+      </Field>
+
       <FileUploader folder="avatars" value={form.avatar_url} onUploadComplete={({ path }) => set('avatar_url', path)} onRemove={() => set('avatar_url', '')} label="Foto de perfil (imagem)" accept="image/*" />
-      <div style={{ display:'flex', justifyContent:'flex-end', gap:10, marginTop:6 }}><Btn variant="secondary" onClick={onClose}>Cancelar</Btn><Btn type="submit" disabled={saving}>{saving?'Salvando...':'Salvar'}</Btn></div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 6 }}><Btn variant="secondary" onClick={onClose}>Cancelar</Btn><Btn type="submit" disabled={saving}>{saving ? 'Salvando...' : 'Salvar'}</Btn></div>
     </form>
   );
 }
-
 // ── RELATÓRIOS ─────────────────────────────────────────────────────────────
 export function RelatoriosPage() {
   const [rel, setRel] = useState(null);

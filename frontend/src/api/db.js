@@ -86,7 +86,8 @@ export const authApi = {
       await supabase.from('profiles').select('*').eq('household_id', profile.household_id)
     );
   },
-  async createMember({ nome, email, password, telefone, funcao, permissao, avatar_url }) {
+
+  async createMember({ nome, email, password, telefone, funcao, permissao, avatar_url, modulos }) {
     const profile = await authApi.getProfile();
     if (!profile?.household_id) throw new Error('Household não encontrada');
 
@@ -97,14 +98,17 @@ export const authApi = {
 
     check(await supabase.from('profiles').update({
       household_id: profile.household_id,
-      nome, telefone: telefone || null,
+      nome,
+      telefone: telefone || null,
       funcao: funcao || null,
       permissao: permissao || 'Morador',
       avatar_url: avatar_url || null,
+      modulos: modulos || null,
     }).eq('id', data.user.id));
 
     return check(await supabase.from('profiles').select('*').eq('id', data.user.id).single());
   },
+
   async updateMember(id, payload) {
     return check(
       await supabase.from('profiles').update(payload).eq('id', id).select().single()

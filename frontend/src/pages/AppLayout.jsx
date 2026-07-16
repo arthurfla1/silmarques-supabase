@@ -32,6 +32,18 @@ function NavItem({ item, onClick }) {
   );
 }
 
+const isModuleAllowed = (profile, to) => {
+  if (!profile) return false;
+  const modId = to === '/' ? 'inicio' : to.replace('/', '');
+  if (profile.modulos !== undefined && profile.modulos !== null && profile.modulos.trim() !== '') {
+    if (modId === 'inicio') return true;
+    return profile.modulos.split(',').includes(modId);
+  }
+  const role = profile.permissao || 'Morador';
+  const navItem = NAV.find(item => item.to === to);
+  return navItem ? navItem.roles.includes(role) : false;
+};
+
 function Footer({ user, theme, toggleTheme, logout, onChangePassword }) {
   return (
     <div style={{ padding:12, borderTop:'1px solid var(--sm-border)', display:'flex', flexDirection:'column', gap:8 }}>
@@ -62,9 +74,7 @@ function Footer({ user, theme, toggleTheme, logout, onChangePassword }) {
 }
 
 function Sidebar({ profile, theme, toggleTheme, logout, onClose, onChangePassword }) {
-  const userRole = profile?.permissao || 'Morador';
-  const allowedNav = NAV.filter(item => item.roles.includes(userRole));
-
+  const allowedNav = NAV.filter(item => isModuleAllowed(profile, item.to));
   return (
     <aside style={{ width:232, display:'flex', flexDirection:'column', height:'100%', background:'var(--sm-surface)' }}>
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'22px 20px 18px' }}>
