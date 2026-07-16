@@ -110,15 +110,27 @@ export function HealthRing({ pct, size=120 }) {
     </div>
   );
 }
-
-export function Avatar({ name='?', size=38 }) {
+export function Avatar({ name='?', size=38, url }) {
   const initials = name.split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();
   const colors = ['#D32F2F','#1565C0','#2E7D32','#B8740A','#6A4C93'];
   let h=0; for (let i=0;i<name.length;i++) h=name.charCodeAt(i)+((h<<5)-h);
   const bg = colors[Math.abs(h)%colors.length];
+  
+  const bucketUrl = `https://zzpzvjueortfmcyfygef.supabase.co/storage/v1/object/public/arquivos/`;
+  const fileUrl = url ? (url.startsWith('http') ? url : `${bucketUrl}${url}`) : '';
+
+  if (url) {
+    return (
+      <img 
+        src={fileUrl} 
+        alt={name} 
+        style={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '1px solid var(--sm-border)' }} 
+      />
+    );
+  }
+
   return <div style={{ width:size, height:size, borderRadius:'50%', background:bg+'22', color:bg, display:'flex', alignItems:'center', justifyContent:'center', fontWeight:700, fontSize:size*.36, flexShrink:0 }}>{initials}</div>;
 }
-
 export function Metric({ icon:Icon, label, value, tone='neutral' }) {
   const c = { neutral:'var(--sm-text)', green:'var(--sm-green)', amber:'var(--sm-amber)', blue:'var(--sm-blue)', red:'var(--sm-red)' }[tone];
   return (

@@ -4,8 +4,7 @@ import { Home, Receipt, ShoppingCart, Package, Sparkles, Car, FileText, Award, U
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/contexts';
 import { authApi } from '../api/db';
-import { Modal, Field, Input, Btn, ErrorBanner } from '../components/ui';
-
+import { Modal, Field, Input, Btn, ErrorBanner, Avatar } from '../components/ui';
 const NAV = [
   { to:'/', label:'Início', icon:Home, end:true },
   { to:'/contas', label:'Contas', icon:Receipt },
@@ -37,12 +36,15 @@ function Footer({ user, theme, toggleTheme, logout, onChangePassword }) {
   return (
     <div style={{ padding:12, borderTop:'1px solid var(--sm-border)', display:'flex', flexDirection:'column', gap:8 }}>
       {user && (
-        <div style={{ fontSize:12.5, color:'var(--sm-text-soft)', padding:'0 4px' }}>
-          <div style={{ fontWeight:600, color:'var(--sm-text)' }}>{user.nome||user.email}</div>
-          <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:2 }}>
-            <span>{user.permissao||'Membro'}</span>
-            <span style={{ color:'var(--sm-text-faint)' }}>•</span>
-            <span style={{ fontWeight:600, color:'var(--sm-red)' }}>{user.household_nome || 'SilMarques'}</span>
+        <div style={{ display:'flex', alignItems:'center', gap:10, padding:'4px 4px' }}>
+          <Avatar name={user.nome} url={user.avatar_url} size={38} />
+          <div style={{ fontSize:12.5, color:'var(--sm-text-soft)', minWidth: 0 }}>
+            <div style={{ fontWeight:600, color:'var(--sm-text)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{user.nome||user.email}</div>
+            <div style={{ display:'flex', alignItems:'center', gap:5, marginTop:2, flexWrap:'wrap' }}>
+              <span>{user.permissao||'Membro'}</span>
+              <span style={{ color:'var(--sm-text-faint)' }}>•</span>
+              <span style={{ fontWeight:600, color:'var(--sm-red)' }}>{user.household_nome || 'SilMarques'}</span>
+            </div>
           </div>
         </div>
       )}

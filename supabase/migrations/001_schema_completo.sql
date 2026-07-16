@@ -28,6 +28,7 @@ create table if not exists profiles (
   funcao text,
   permissao text not null default 'Morador' check (permissao in ('Administrador','Morador','Colaborador')),
   status text not null default 'aprovado' check (status in ('pendente','aprovado','rejeitado')),
+  avatar_url text,
   created_at timestamptz default now()
 );
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Btn, Input, Field } from '../components/ui';
+import { Btn, Input, Field, FileUploader } from '../components/ui';
 import { supabase } from '../lib/supabase';
 import { authApi } from '../api/db';
 
@@ -69,7 +69,7 @@ export function SignupPage() {
   const [searchParams] = useSearchParams();
   const inviteId = searchParams.get('convite');
 
-  const [form, setForm] = useState({ householdNome:'Família SilMarques', nome:'', email:'', password:'', telefone:'', funcao:'' });
+  const [form, setForm] = useState({ householdNome:'Família SilMarques', nome:'', email:'', password:'', telefone:'', funcao:'', avatar_url:'' });
   const [householdName, setHouseholdName] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -125,6 +125,7 @@ export function SignupPage() {
           <Field label="Telefone (opcional)"><Input value={form.telefone} onChange={e=>set('telefone',e.target.value)} placeholder="(79) 99999-9999"/></Field>
           <Field label="Função na casa (opcional)"><Input value={form.funcao} onChange={e=>set('funcao',e.target.value)} placeholder="Ex: Pai"/></Field>
         </div>
+        <FileUploader folder="avatars" value={form.avatar_url} onUploadComplete={({ path }) => set('avatar_url', path)} onRemove={() => set('avatar_url', '')} label="Foto de perfil (imagem)" accept="image/*" />
         <ErrorMsg msg={error}/>
         <Btn type="submit" disabled={loading} style={{ width:'100%', marginTop:6 }}>
           {loading ? 'Entrando...' : (inviteId ? 'Criar conta e entrar' : 'Criar residência e entrar')}

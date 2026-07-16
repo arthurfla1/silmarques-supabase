@@ -491,7 +491,18 @@ export function LimpezaPage() {
               </div>
               <Badge tone={PRIO_TONE[t.prioridade]}>{t.prioridade}</Badge>
               <Badge tone="neutral">{t.frequencia}</Badge>
-              {t.responsavel && <div style={{ display:'flex', alignItems:'center', gap:6 }}><Avatar name={t.responsavel} size={28}/><div style={{ fontSize:12.5, color:'var(--sm-text-soft)' }}><div>{t.responsavel}</div><div><Clock size={11} style={{ verticalAlign:-1 }}/> {t.status==='concluida'?`${t.tempo_gasto} min`:`${t.tempo_estimado} min est.`}</div></div></div>}
+              {t.responsavel && (() => {
+                const respMember = familia.find(m => m.nome === t.responsavel);
+                return (
+                  <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                    <Avatar name={t.responsavel} url={respMember?.avatar_url} size={28}/>
+                    <div style={{ fontSize:12.5, color:'var(--sm-text-soft)' }}>
+                      <div>{t.responsavel}</div>
+                      <div><Clock size={11} style={{ verticalAlign:-1 }}/> {t.status==='concluida'?`${t.tempo_gasto} min`:`${t.tempo_estimado} min est.`}</div>
+                    </div>
+                  </div>
+                );
+              })()}
               <div style={{ display:'flex', gap:6 }}><IconBtn icon={Edit2} onClick={()=>setModal(t)}/><IconBtn icon={Trash2} tone="red" onClick={()=>remove(t.id)}/></div>
             </Card>
           ))}
@@ -1015,7 +1026,7 @@ export function FamiliaPage() {
             {pendentes.map(m => (
               <Card key={m.id} style={{ background: 'var(--sm-surface)', border: '1px solid var(--sm-border)' }}>
                 <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
-                  <div style={{ display: 'flex', gap: 12 }}><Avatar name={m.nome} size={44}/><div><div style={{ fontWeight:600, fontSize:15 }}>{m.nome}</div><div style={{ fontSize:12.5, color:'var(--sm-text-soft)' }}>{m.funcao||'—'}</div></div></div>
+                  <div style={{ display: 'flex', gap: 12 }}><Avatar name={m.nome} url={m.avatar_url} size={44}/><div><div style={{ fontWeight:600, fontSize:15 }}>{m.nome}</div><div style={{ fontSize:12.5, color:'var(--sm-text-soft)' }}>{m.funcao||'—'}</div></div></div>
                 </div>
                 <div style={{ marginTop:12, display:'flex', flexDirection:'column', gap:6, fontSize:13 }}>
                   {m.telefone && <div style={{ display:'flex', alignItems:'center', gap:6, color:'var(--sm-text-soft)' }}><Phone size={14}/>{m.telefone}</div>}
@@ -1041,7 +1052,7 @@ export function FamiliaPage() {
         {ativos.map(m=>(
           <Card key={m.id}>
             <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:10 }}>
-              <div style={{ display:'flex', gap:12 }}><Avatar name={m.nome} size={44}/><div><div style={{ fontWeight:600, fontSize:15 }}>{m.nome}</div><div style={{ fontSize:12.5, color:'var(--sm-text-soft)' }}>{m.funcao||'—'}</div></div></div>
+              <div style={{ display:'flex', gap:12 }}><Avatar name={m.nome} url={m.avatar_url} size={44}/><div><div style={{ fontWeight:600, fontSize:15 }}>{m.nome}</div><div style={{ fontSize:12.5, color:'var(--sm-text-soft)' }}>{m.funcao||'—'}</div></div></div>
               <div style={{ display:'flex', gap:4 }}><IconBtn icon={Edit2} onClick={()=>setModal(m)}/><IconBtn icon={Trash2} tone="red" onClick={()=>remove(m.id)}/></div>
             </div>
             <div style={{ marginTop:12, display:'flex', flexDirection:'column', gap:6, fontSize:13 }}>
@@ -1058,7 +1069,7 @@ export function FamiliaPage() {
 }
 
 function MembroForm({ membro, saving, onSave, onClose }) {
-  const [form,setForm]=useState(membro?{ nome:membro.nome,telefone:membro.telefone||'',email:'',funcao:membro.funcao||'',permissao:membro.permissao }:{ nome:'',telefone:'',email:'',funcao:'',permissao:'Morador',password:'' });
+  const [form,setForm]=useState(membro?{ nome:membro.nome,telefone:membro.telefone||'',email:'',funcao:membro.funcao||'',permissao:membro.permissao,avatar_url:membro.avatar_url||'' }:{ nome:'',telefone:'',email:'',funcao:'',permissao:'Morador',password:'',avatar_url:'' });
   const set=(k,v)=>setForm(f=>({...f,[k]:v}));
   return (
     <form onSubmit={e=>{e.preventDefault();onSave(form);}} style={{ display:'flex', flexDirection:'column', gap:14 }}>
@@ -1070,6 +1081,7 @@ function MembroForm({ membro, saving, onSave, onClose }) {
       {!membro && <Field label="Senha"><Input type="password" required minLength={6} value={form.password} onChange={e=>set('password',e.target.value)} placeholder="Mínimo 6 caracteres"/></Field>}
       <Field label="Função na casa"><Input value={form.funcao} onChange={e=>set('funcao',e.target.value)} placeholder="Ex: Mãe / Gestão da casa"/></Field>
       <Field label="Permissão"><Select value={form.permissao} onChange={e=>set('permissao',e.target.value)}>{PERMISSOES.map(p=><option key={p}>{p}</option>)}</Select></Field>
+      <FileUploader folder="avatars" value={form.avatar_url} onUploadComplete={({ path }) => set('avatar_url', path)} onRemove={() => set('avatar_url', '')} label="Foto de perfil (imagem)" accept="image/*" />
       <div style={{ display:'flex', justifyContent:'flex-end', gap:10, marginTop:6 }}><Btn variant="secondary" onClick={onClose}>Cancelar</Btn><Btn type="submit" disabled={saving}>{saving?'Salvando...':'Salvar'}</Btn></div>
     </form>
   );
