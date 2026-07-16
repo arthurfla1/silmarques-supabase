@@ -247,6 +247,7 @@ export function ContasPage() {
                   valor: c.valor,
                   vencimento: c.vencimento,
                   responsavel: c.responsavel || null,
+                  forma: c.forma || 'Boleto',
                   status: 'pendente'
                 });
               }
@@ -528,14 +529,13 @@ function ImportExtratoForm({ familia, onImport, onClose }) {
         desc = parts.find(p => !dateRegex.test(p) && isNaN(parseFloat(p))) || 'Transação';
       }
       
-      const { cat, just } = categorizarTransacao(desc);
-      
       results.push({
         descricao: desc,
         valor: value,
         vencimento: dateStr,
-        categoria: cat,
-        justificativa: just,
+        categoria: 'Cartões',
+        forma: 'Cartão',
+        justificativa: 'Fatura de cartão de crédito (CSV).',
         selected: true
       });
     }
