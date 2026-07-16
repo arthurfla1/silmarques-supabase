@@ -398,21 +398,148 @@ const parseStatementText = (text) => {
 };
 
 function ImportExtratoForm({ familia, onImport, onClose }) {
-  const [rawText, setRawText] = useState('');
+  const [file, setFile] = useState(null);
   const [defaultResponsavel, setDefaultResponsavel] = useState('');
   const [preview, setPreview] = useState([]);
   const [step, setStep] = useState(1);
   const [saving, setSaving] = useState(false);
+  const [loadingFile, setLoadingFile] = useState(false);
+  const [errorFile, setErrorFile] = useState('');
 
-  const handleAnalisar = () => {
-    if (!rawText.trim()) return;
-    const parsed = parseStatementText(rawText);
-    const mapped = parsed.map(p => ({
-      ...p,
-      responsavel: defaultResponsavel || (familia[0]?.nome || '')
-    }));
-    setPreview(mapped);
-    setStep(2);
+  const loadPdfjs = () => {
+    return new Promise((resolve) => {
+      if (window.pdfjsLib) return resolve(window.pdfjsLib);
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js';
+      script.onload = () => {
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+        resolve(window.pdfjsLib);
+      };
+      document.head.appendChild(script);
+    });
+  };
+
+  const extractTextFromPdf = async (file) => {
+    const pdfjs = await loadPdfjs();
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
+    let text = '';
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      const strings = content.items.map(item => item.str);
+      text += strings.join(' ') + '\n';
+    }
+    return text;
+  };
+
+  const parseCsvText = (csvText) => {
+    const lines = csvText.split('\n');
+    const results = [];
+    
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      
+      let delimiter = ';';
+      if (trimmed.includes(',')) {
+        if (!trimmed.includes(';')) {
+          delimiter = ',';
+        }
+      } else if (trimmed.includes('\t')) {
+        delimiter = '\t';
+      }
+      
+      const parts = trimmed.split(delimiter).map(p => p.trim().replace(/^["']|["']$/g, ''));
+      if (parts.length < 2) continue;
+      
+      let dateStr = todayStr();
+      let value = 0;
+      let desc = '';
+      
+      const dateRegex = /^(\d{2}\/\d{2}\/\d{4})|(\d{4}-\d{2}-\d{2})$/;
+      const valRegex = /^-?\d+([\.,]\d{2})?$/;
+      
+      for (const part of parts) {
+        if (dateRegex.test(part)) {
+          if (part.includes('/')) {
+            const dp = part.split('/');
+            dateStr = `${dp[2]}-${dp[1]}-${dp[0]}`;
+          } else {
+            dateStr = part;
+          }
+        } else if (valRegex.test(part.replace('R$', '').replace(/\s/g, '').replace('.', '').replace(',', '.'))) {
+          const cleanedVal = part.replace('R$', '').replace(/\s/g, '').replace('.', '').replace(',', '.');
+          value = Math.abs(parseFloat(cleanedVal)) || 0;
+        } else {
+          if (part && part.length > desc.length) {
+            desc = part;
+          }
+        }
+      }
+      
+      if (!desc) {
+        desc = parts.find(p => !dateRegex.test(p) && isNaN(parseFloat(p))) || 'Transação';
+      }
+      
+      const { cat, just } = categorizarTransacao(desc);
+      
+      results.push({
+        descricao: desc,
+        valor: value,
+        vencimento: dateStr,
+        categoria: cat,
+        justificativa: just,
+        selected: true
+      });
+    }
+    
+    return results;
+  };
+
+  const handleFileChange = async (e) => {
+    const selectedFile = e.target.files[0];
+    if (!selectedFile) return;
+    setFile(selectedFile);
+    setErrorFile('');
+  };
+
+  const handleAnalisar = async () => {
+    if (!file) {
+      setErrorFile('Por favor, selecione um arquivo primeiro.');
+      return;
+    }
+    setLoadingFile(true);
+    setErrorFile('');
+    try {
+      let parsed = [];
+      const extension = file.name.split('.').pop().toLowerCase();
+      
+      if (extension === 'csv') {
+        const text = await file.text();
+        parsed = parseCsvText(text);
+      } else if (extension === 'pdf') {
+        const text = await extractTextFromPdf(file);
+        parsed = parseStatementText(text);
+      } else {
+        throw new Error('Formato não suportado. Envie apenas arquivos PDF ou CSV.');
+      }
+      
+      if (parsed.length === 0) {
+        throw new Error('Nenhuma transação foi identificada no arquivo. Verifique o formato.');
+      }
+
+      const mapped = parsed.map(p => ({
+        ...p,
+        responsavel: defaultResponsavel || (familia[0]?.nome || '')
+      }));
+      setPreview(mapped);
+      setStep(2);
+    } catch (err) {
+      setErrorFile(err.message || 'Erro ao ler arquivo.');
+    } finally {
+      setLoadingFile(false);
+    }
   };
 
   const handleConfirm = async () => {
@@ -432,8 +559,10 @@ function ImportExtratoForm({ familia, onImport, onClose }) {
       {step === 1 ? (
         <>
           <div style={{ fontSize: 13.5, color: 'var(--sm-text-soft)', marginBottom: 4 }}>
-            Cole abaixo as linhas do seu extrato bancário (PDF copiado ou CSV) ou um array JSON de transações. Nosso sistema irá identificar a descrição, valor, data de vencimento e sugerir a melhor categoria automaticamente de acordo com as regras de processamento.
+            Envie o arquivo do seu extrato bancário nos formatos **PDF** ou **CSV**. Nosso sistema irá ler e analisar o arquivo, extraindo as transações e sugerindo a melhor categoria e responsável automaticamente.
           </div>
+          {errorFile && <ErrorBanner message={errorFile} />}
+          
           <Field label="Responsável Padrão pelas Contas">
             <Select value={defaultResponsavel} onChange={e => setDefaultResponsavel(e.target.value)}>
               <option value="">Selecione quem será o responsável...</option>
@@ -442,18 +571,47 @@ function ImportExtratoForm({ familia, onImport, onClose }) {
               ))}
             </Select>
           </Field>
-          <Field label="Dados do Extrato (Texto / CSV / JSON)">
-            <TextArea
-              rows={10}
-              placeholder={`Exemplo de linhas de extrato:\n15/07/2026 RESTAURANTE SAO MIGUEL 40,00\n16/07/2026 AUTO POSTO ARACAJU 150.00\n\nOu JSON:\n[\n  {"descricao": "NETFLIX", "valor": 55.90, "data": "15/07/2026"}\n]`}
-              value={rawText}
-              onChange={e => setRawText(e.target.value)}
-              style={{ fontFamily: 'monospace', fontSize: 12.5 }}
-            />
+          
+          <Field label="Selecionar Arquivo de Extrato (PDF ou CSV)">
+            <div style={{
+              border: '2px dashed var(--sm-border)',
+              borderRadius: 'var(--radius-md)',
+              padding: '24px 16px',
+              textAlign: 'center',
+              background: 'var(--sm-bg)',
+              cursor: 'pointer',
+              position: 'relative'
+            }}>
+              <input
+                type="file"
+                accept=".pdf,.csv"
+                onChange={handleFileChange}
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  opacity: 0,
+                  cursor: 'pointer',
+                  width: '100%',
+                  height: '100%'
+                }}
+              />
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+                <Download size={28} style={{ color: 'var(--sm-text-soft)' }} />
+                <span style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--sm-text)' }}>
+                  {file ? file.name : 'Clique para buscar ou arraste o arquivo aqui'}
+                </span>
+                <span style={{ fontSize: 11.5, color: 'var(--sm-text-faint)' }}>
+                  Apenas arquivos nos formatos .pdf ou .csv
+                </span>
+              </div>
+            </div>
           </Field>
+
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 6 }}>
-            <Btn variant="secondary" onClick={onClose}>Cancelar</Btn>
-            <Btn onClick={handleAnalisar} disabled={!rawText.trim()}>Analisar e Categorizar</Btn>
+            <Btn variant="secondary" onClick={onClose} disabled={loadingFile}>Cancelar</Btn>
+            <Btn onClick={handleAnalisar} disabled={!file || loadingFile}>
+              {loadingFile ? 'Lendo e Analisando...' : 'Analisar e Categorizar'}
+            </Btn>
           </div>
         </>
       ) : (
