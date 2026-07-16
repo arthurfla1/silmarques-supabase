@@ -57,6 +57,7 @@ export function ContasPage() {
   const [periodo, setPeriodo] = useState('mes'); // 'mes', 'trimestre', 'ano', 'custom', 'todos'
   const [dataInicio, setDataInicio] = useState('');
   const [dataFim, setDataFim] = useState('');
+  const [importModalOpen, setImportModalOpen] = useState(false);
 
   if (loading) return <LoadingScreen label="Carregando contas..."/>;
   if (error) return <ErrorBanner message={error} onRetry={reload}/>;
@@ -119,7 +120,12 @@ export function ContasPage() {
   return (
     <div className="fadein">
       <SectionHeader title="Contas da casa" subtitle="Vencimentos, pagamentos e gastos por categoria."
-        action={<Btn icon={Plus} onClick={()=>setModal({})}>Nova conta</Btn>}/>
+        action={
+          <div style={{ display:'flex', gap:10 }}>
+            <Btn variant="secondary" icon={Download} onClick={()=>setImportModalOpen(true)}>Importar Extrato</Btn>
+            <Btn icon={Plus} onClick={()=>setModal({})}>Nova conta</Btn>
+          </div>
+        }/>
       {actionError && <ErrorBanner message={actionError}/>}
       
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginBottom: 16, background: 'var(--sm-surface)', border: '1px solid var(--sm-border)', borderRadius: 'var(--radius-lg)', padding: 14 }}>
@@ -228,6 +234,323 @@ export function ContasPage() {
         <Modal title={modal.id?'Editar conta':'Nova conta'} onClose={()=>setModal(null)}>
           <ContaForm conta={modal.id?modal:null} familia={familia} saving={saving} onSave={handleSave} onClose={()=>setModal(null)}/>
         </Modal>
+      )}
+      {importModalOpen && (
+        <Modal title="Importar Extrato Bancário" onClose={() => setImportModalOpen(false)} width={780}>
+          <ImportExtratoForm
+            familia={familia}
+            onImport={async (contasParaImportar) => {
+              for (const c of contasParaImportar) {
+                await contasApi.create({
+                  descricao: c.descricao,
+                  categoria: c.categoria,
+                  valor: c.valor,
+                  vencimento: c.vencimento,
+                  responsavel: c.responsavel || null,
+                  status: 'pendente'
+                });
+              }
+              reload();
+              setImportModalOpen(false);
+            }}
+            onClose={() => setImportModalOpen(false)}
+          />
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+const categorizarTransacao = (descricao) => {
+  const desc = (descricao || '').toLowerCase();
+  
+  if (desc.includes('sabesp') || desc.includes('embasa') || desc.includes('sanepar') || desc.includes('agua') || desc.includes('água')) {
+    return { cat: 'Água', just: 'Identificado palavra-chave de saneamento/água.' };
+  }
+  if (desc.includes('enel') || desc.includes('coelba') || desc.includes('light') || desc.includes('cpfl') || desc.includes('energia') || desc.includes('elektro') || desc.includes('equatorial')) {
+    return { cat: 'Energia', just: 'Identificado concessionária de energia elétrica.' };
+  }
+  if (desc.includes('net') || desc.includes('fibra') || desc.includes('telecom') || desc.includes('link') || desc.includes('wifi') || desc.includes('broadband')) {
+    return { cat: 'Internet', just: 'Identificado provedor de internet/banda larga.' };
+  }
+  if (desc.includes('vivo') || desc.includes('claro') || desc.includes('tim') || desc.includes('oi') || desc.includes('celular') || desc.includes('telefone')) {
+    return { cat: 'Telefone', just: 'Identificada operadora de telefonia.' };
+  }
+  if (desc.includes('condominio') || desc.includes('condomínio') || desc.includes('taxa condominial')) {
+    return { cat: 'Condomínio', just: 'Identificado pagamento de taxa de condomínio.' };
+  }
+  if (desc.includes('gas') || desc.includes('gás') || desc.includes('ultragaz') || desc.includes('liquigas') || desc.includes('supergasbras')) {
+    return { cat: 'Gás', just: 'Identificado fornecedor/distribuidor de gás.' };
+  }
+  if (desc.includes('netflix') || desc.includes('spotify') || desc.includes('disney') || desc.includes('hbo') || desc.includes('prime video') || desc.includes('streaming') || desc.includes('youtube premium') || desc.includes('deezer') || desc.includes('apple.com/bill')) {
+    return { cat: 'Streaming', just: 'Serviço de entretenimento/streaming identificado.' };
+  }
+  if (desc.includes('escola') || desc.includes('colegio') || desc.includes('colégio') || desc.includes('faculdade') || desc.includes('universidade') || desc.includes('curso') || desc.includes('mensalidade escolar')) {
+    return { cat: 'Escola', just: 'Identificada instituição de ensino ou curso.' };
+  }
+  if (desc.includes('pgto cartao') || desc.includes('nubank') || desc.includes('bradescard') || desc.includes('itaucard') || desc.includes('credicard') || desc.includes('fatura') || desc.includes('cartao') || desc.includes('cartão')) {
+    return { cat: 'Cartões', just: 'Fatura de cartão de crédito identificada.' };
+  }
+  if (desc.includes('financiamento') || desc.includes('leasing') || desc.includes('consórcio') || desc.includes('consorcio') || desc.includes('banco pan') || desc.includes('bv financeira')) {
+    return { cat: 'Financiamentos', just: 'Pagamento de financiamento/consórcio.' };
+  }
+  if (desc.includes('aluguel') || desc.includes('locacao') || desc.includes('locação') || desc.includes('quinto andar') || desc.includes('quintoandar')) {
+    return { cat: 'Aluguel', just: 'Pagamento de aluguel residencial.' };
+  }
+  if (desc.includes('seguro resid') || desc.includes('seguro casa') || desc.includes('seguro residencial')) {
+    return { cat: 'Seguro Residencial', just: 'Seguro de proteção residencial.' };
+  }
+  if (desc.includes('iptu') || desc.includes('ipva') || desc.includes('darf') || desc.includes('imposto') || desc.includes('receita federal') || desc.includes('tributo') || desc.includes('taxa prefeitura')) {
+    return { cat: 'Impostos', just: 'Imposto ou tributo governamental identificado.' };
+  }
+  if (desc.includes('cinema') || desc.includes('cinemark') || desc.includes('cinepolis') || desc.includes('uci') || desc.includes('ingresso.com')) {
+    return { cat: 'Cinema', just: 'Identificado gasto com cinema/bilheteria.' };
+  }
+  if (desc.includes('restaurante') || desc.includes('churrascaria') || desc.includes('pizzaria') || desc.includes('bar') || desc.includes('lanches') || desc.includes('mcdonald') || desc.includes('burger king') || desc.includes('bk') || desc.includes('delivery') || desc.includes('ifood') || desc.includes('ubereats') || desc.includes('rappi') || desc.includes('alimentos') || desc.includes('mercado') || desc.includes('supermercado') || desc.includes('feira')) {
+    return { cat: 'Restaurantes', just: 'Classificado como alimentação/restaurantes/delivery/mercado.' };
+  }
+  if (desc.includes('padaria') || desc.includes('panificadora') || desc.includes('confeitaria') || desc.includes('pao') || desc.includes('pão')) {
+    return { cat: 'Padaria', just: 'Nome do estabelecimento indica panificação/padaria.' };
+  }
+  return { cat: 'Outros', just: 'Sem correspondência lógica com categorias específicas.' };
+};
+
+const parseStatementText = (text) => {
+  try {
+    const parsed = JSON.parse(text);
+    if (Array.isArray(parsed)) {
+      return parsed.map(item => {
+        const desc = item.descricao || item.description || 'Transação sem nome';
+        const val = Math.abs(parseFloat(String(item.valor || item.value || '0').replace('R$', '').replace(/\s/g, '').replace('.', '').replace(',', '.')));
+        let date = todayStr();
+        const dateVal = item.data || item.date;
+        if (dateVal) {
+          const parts = dateVal.split('/');
+          if (parts.length === 3) {
+            date = `${parts[2]}-${parts[1]}-${parts[0]}`;
+          } else if (dateVal.includes('-')) {
+            date = dateVal.slice(0, 10);
+          }
+        }
+        const { cat, just } = categorizarTransacao(desc);
+        return {
+          descricao: desc,
+          valor: val,
+          vencimento: date,
+          categoria: cat,
+          justificativa: just,
+          selected: true
+        };
+      });
+    }
+  } catch (e) {}
+
+  const lines = text.split('\n');
+  const results = [];
+  
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    
+    const dateRegex = /(\d{2}\/\d{2}\/\d{4})|(\d{4}-\d{2}-\d{2})/;
+    const dateMatch = trimmed.match(dateRegex);
+    let dateStr = todayStr();
+    let cleanedLine = trimmed;
+    
+    if (dateMatch) {
+      const matched = dateMatch[0];
+      cleanedLine = cleanedLine.replace(matched, '').trim();
+      if (matched.includes('/')) {
+        const parts = matched.split('/');
+        dateStr = `${parts[2]}-${parts[1]}-${parts[0]}`;
+      } else {
+        dateStr = matched;
+      }
+    }
+    
+    const valRegex = /(-?\d+[\.,]\d{2})|(-?\d+)/g;
+    const matches = cleanedLine.match(valRegex);
+    let value = 0;
+    
+    if (matches && matches.length > 0) {
+      const matchedVal = matches[matches.length - 1];
+      cleanedLine = cleanedLine.replace(matchedVal, '').trim();
+      const cleanedVal = matchedVal.replace('R$', '').replace(/\s/g, '').replace('.', '').replace(',', '.');
+      value = Math.abs(parseFloat(cleanedVal)) || 0;
+    }
+    
+    let desc = cleanedLine.replace(/R\$\s*/g, '').replace(/[\-\+]$/, '').trim();
+    if (!desc) desc = 'Transação sem descrição';
+    
+    const { cat, just } = categorizarTransacao(desc);
+    
+    results.push({
+      descricao: desc,
+      valor: value,
+      vencimento: dateStr,
+      categoria: cat,
+      justificativa: just,
+      selected: true
+    });
+  }
+  
+  return results;
+};
+
+function ImportExtratoForm({ familia, onImport, onClose }) {
+  const [rawText, setRawText] = useState('');
+  const [defaultResponsavel, setDefaultResponsavel] = useState('');
+  const [preview, setPreview] = useState([]);
+  const [step, setStep] = useState(1);
+  const [saving, setSaving] = useState(false);
+
+  const handleAnalisar = () => {
+    if (!rawText.trim()) return;
+    const parsed = parseStatementText(rawText);
+    const mapped = parsed.map(p => ({
+      ...p,
+      responsavel: defaultResponsavel || (familia[0]?.nome || '')
+    }));
+    setPreview(mapped);
+    setStep(2);
+  };
+
+  const handleConfirm = async () => {
+    const toImport = preview.filter(p => p.selected);
+    if (toImport.length === 0) return;
+    setSaving(true);
+    try {
+      await onImport(toImport);
+    } catch (e) {
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      {step === 1 ? (
+        <>
+          <div style={{ fontSize: 13.5, color: 'var(--sm-text-soft)', marginBottom: 4 }}>
+            Cole abaixo as linhas do seu extrato bancário (PDF copiado ou CSV) ou um array JSON de transações. Nosso sistema irá identificar a descrição, valor, data de vencimento e sugerir a melhor categoria automaticamente de acordo com as regras de processamento.
+          </div>
+          <Field label="Responsável Padrão pelas Contas">
+            <Select value={defaultResponsavel} onChange={e => setDefaultResponsavel(e.target.value)}>
+              <option value="">Selecione quem será o responsável...</option>
+              {familia.filter(m => m.status !== 'pendente').map(m => (
+                <option key={m.id} value={m.nome}>{m.nome}</option>
+              ))}
+            </Select>
+          </Field>
+          <Field label="Dados do Extrato (Texto / CSV / JSON)">
+            <TextArea
+              rows={10}
+              placeholder={`Exemplo de linhas de extrato:\n15/07/2026 RESTAURANTE SAO MIGUEL 40,00\n16/07/2026 AUTO POSTO ARACAJU 150.00\n\nOu JSON:\n[\n  {"descricao": "NETFLIX", "valor": 55.90, "data": "15/07/2026"}\n]`}
+              value={rawText}
+              onChange={e => setRawText(e.target.value)}
+              style={{ fontFamily: 'monospace', fontSize: 12.5 }}
+            />
+          </Field>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 6 }}>
+            <Btn variant="secondary" onClick={onClose}>Cancelar</Btn>
+            <Btn onClick={handleAnalisar} disabled={!rawText.trim()}>Analisar e Categorizar</Btn>
+          </div>
+        </>
+      ) : (
+        <>
+          <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--sm-text)' }}>
+            Revisar Transações Identificadas ({preview.filter(p => p.selected).length} de {preview.length})
+          </div>
+          <div style={{ maxHeight: 350, overflowY: 'auto', border: '1px solid var(--sm-border)', borderRadius: 'var(--radius-md)', background: 'var(--sm-bg)' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
+              <thead>
+                <tr style={{ background: 'var(--sm-surface)', borderBottom: '1px solid var(--sm-border)', textAlign: 'left' }}>
+                  <th style={{ padding: 10, width: 40 }}></th>
+                  <th style={{ padding: 10 }}>Descrição</th>
+                  <th style={{ padding: 10, width: 120 }}>Vencimento</th>
+                  <th style={{ padding: 10, width: 100 }}>Valor</th>
+                  <th style={{ padding: 10, width: 160 }}>Categoria</th>
+                  <th style={{ padding: 10, width: 140 }}>Responsável</th>
+                </tr>
+              </thead>
+              <tbody>
+                {preview.map((item, idx) => (
+                  <tr key={idx} style={{ borderBottom: '1px solid var(--sm-border)', opacity: item.selected ? 1 : 0.6 }}>
+                    <td style={{ padding: 10, textAlign: 'center' }}>
+                      <input
+                        type="checkbox"
+                        checked={item.selected}
+                        onChange={e => {
+                          const newPreview = [...preview];
+                          newPreview[idx].selected = e.target.checked;
+                          setPreview(newPreview);
+                        }}
+                      />
+                    </td>
+                    <td style={{ padding: 10 }}>
+                      <div style={{ fontWeight: 600 }}>{item.descricao}</div>
+                      <div style={{ fontSize: 11, color: 'var(--sm-text-soft)', marginTop: 2 }}>
+                        💡 {item.justificativa}
+                      </div>
+                    </td>
+                    <td style={{ padding: 10 }}>
+                      <Input
+                        type="date"
+                        value={item.vencimento}
+                        onChange={e => {
+                          const newPreview = [...preview];
+                          newPreview[idx].vencimento = e.target.value;
+                          setPreview(newPreview);
+                        }}
+                        style={{ padding: '4px 6px', fontSize: 12 }}
+                      />
+                    </td>
+                    <td style={{ padding: 10, fontWeight: 700 }}>
+                      R$ {item.valor.toFixed(2)}
+                    </td>
+                    <td style={{ padding: 10 }}>
+                      <Select
+                        value={item.categoria}
+                        onChange={e => {
+                          const newPreview = [...preview];
+                          newPreview[idx].categoria = e.target.value;
+                          setPreview(newPreview);
+                        }}
+                        style={{ padding: '4px 6px', fontSize: 12 }}
+                      >
+                        {CONTA_CATEGORIAS.map(c => <option key={c} value={c}>{c}</option>)}
+                      </Select>
+                    </td>
+                    <td style={{ padding: 10 }}>
+                      <Select
+                        value={item.responsavel}
+                        onChange={e => {
+                          const newPreview = [...preview];
+                          newPreview[idx].responsavel = e.target.value;
+                          setPreview(newPreview);
+                        }}
+                        style={{ padding: '4px 6px', fontSize: 12 }}
+                      >
+                        {familia.filter(m => m.status !== 'pendente').map(m => (
+                          <option key={m.id} value={m.nome}>{m.nome}</option>
+                        ))}
+                      </Select>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 }}>
+            <Btn variant="secondary" onClick={() => setStep(1)}>Voltar</Btn>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <Btn variant="secondary" onClick={onClose}>Cancelar</Btn>
+              <Btn onClick={handleConfirm} disabled={saving || preview.filter(p => p.selected).length === 0}>
+                {saving ? 'Importando...' : `Confirmar Importação (${preview.filter(p => p.selected).length} contas)`}
+              </Btn>
+            </div>
+          </div>
+        </>
       )}
     </div>
   );
