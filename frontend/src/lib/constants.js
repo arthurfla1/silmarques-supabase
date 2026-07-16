@@ -17,8 +17,7 @@ export const daysUntil = (dateStr) => {
   return Math.round((d - t) / 86400000);
 };
 export const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
-
-export const CONTA_CATEGORIAS = ['Água','Energia','Internet','Telefone','Condomínio','Gás','Streaming','Escola','Cartões','Financiamentos','Outros'];
+export const CONTA_CATEGORIAS = ['Água', 'Energia', 'Internet', 'Telefone', 'Condomínio', 'Gás', 'Streaming', 'Escola', 'Cartões', 'Financiamentos','Aluguel', 'Seguro Residencial', 'Impostos', 'Cinema','Restaurantes','Padaria','Outros'];
 export const ESTOQUE_CATEGORIAS = ['Alimentos','Bebidas','Produtos de Limpeza','Higiene Pessoal','Medicamentos','Ração Pet','Utilidades Domésticas','Outros'];
 export const ESTOQUE_LOCAIS = ['Geladeira','Freezer','Despensa','Armário','Lavanderia','Banheiro','Garagem'];
 export const LIMPEZA_AMBIENTES = ['Sala','Cozinha','Quartos','Banheiros','Área de Serviço','Quintal','Garagem'];
