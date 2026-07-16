@@ -315,13 +315,40 @@ const categorizarTransacao = (descricao) => {
   return { cat: 'Outros', just: 'Sem correspondência lógica com categorias específicas.' };
 };
 
+const normalizarValor = (valStr) => {
+  if (!valStr) return 0;
+  let clean = valStr.replace('R$', '').replace(/\s/g, '').replace(/[^\d\.,\-+]/g, '');
+  
+  const lastComma = clean.lastIndexOf(',');
+  const lastDot = clean.lastIndexOf('.');
+  
+  if (lastComma !== -1 && lastDot !== -1) {
+    if (lastComma > lastDot) {
+      clean = clean.replace(/\./g, '').replace(',', '.');
+    } else {
+      clean = clean.replace(/,/g, '');
+    }
+  } else if (lastComma !== -1) {
+    clean = clean.replace(',', '.');
+  } else if (lastDot !== -1) {
+    const parts = clean.split('.');
+    const lastPart = parts[parts.length - 1];
+    if (lastPart.length === 3 && parts.length === 2 && !valStr.includes(',')) {
+      clean = clean.replace(/\./g, '');
+    }
+  }
+  
+  const parsed = parseFloat(clean);
+  return isNaN(parsed) ? 0 : Math.abs(parsed);
+};
+
 const parseStatementText = (text) => {
   try {
     const parsed = JSON.parse(text);
     if (Array.isArray(parsed)) {
       return parsed.map(item => {
         const desc = item.descricao || item.description || 'Transação sem nome';
-        const val = Math.abs(parseFloat(String(item.valor || item.value || '0').replace('R$', '').replace(/\s/g, '').replace('.', '').replace(',', '.')));
+        const val = normalizarValor(String(item.valor || item.value || '0'));
         let date = todayStr();
         const dateVal = item.data || item.date;
         if (dateVal) {
@@ -367,16 +394,14 @@ const parseStatementText = (text) => {
         dateStr = matched;
       }
     }
-    
-    const valRegex = /(-?\d+[\.,]\d{2})|(-?\d+)/g;
+    const valRegex = /(-?\d+[\.,]\d{1,2}\b)|(-?\d+\b)/g;
     const matches = cleanedLine.match(valRegex);
     let value = 0;
     
     if (matches && matches.length > 0) {
       const matchedVal = matches[matches.length - 1];
       cleanedLine = cleanedLine.replace(matchedVal, '').trim();
-      const cleanedVal = matchedVal.replace('R$', '').replace(/\s/g, '').replace('.', '').replace(',', '.');
-      value = Math.abs(parseFloat(cleanedVal)) || 0;
+      value = normalizarValor(matchedVal);
     }
     
     let desc = cleanedLine.replace(/R\$\s*/g, '').replace(/[\-\+]$/, '').trim();
@@ -458,7 +483,10 @@ function ImportExtratoForm({ familia, onImport, onClose }) {
       let desc = '';
       
       const dateRegex = /^(\d{2}\/\d{2}\/\d{4})|(\d{4}-\d{2}-\d{2})$/;
-      const valRegex = /^-?\d+([\.,]\d{2})?$/;
+      const isNumericColumn = (str) => {
+        const clean = str.replace('R$', '').replace(/\s/g, '').replace(/[^\d\.,\-+]/g, '');
+        return clean.length > 0 && /^-?[\d\.,]+$/.test(clean) && /\d/.test(clean);
+      };
       
       for (const part of parts) {
         if (dateRegex.test(part)) {
@@ -468,9 +496,8 @@ function ImportExtratoForm({ familia, onImport, onClose }) {
           } else {
             dateStr = part;
           }
-        } else if (valRegex.test(part.replace('R$', '').replace(/\s/g, '').replace('.', '').replace(',', '.'))) {
-          const cleanedVal = part.replace('R$', '').replace(/\s/g, '').replace('.', '').replace(',', '.');
-          value = Math.abs(parseFloat(cleanedVal)) || 0;
+        } else if (isNumericColumn(part)) {
+          value = normalizarValor(part);
         } else {
           if (part && part.length > desc.length) {
             desc = part;
