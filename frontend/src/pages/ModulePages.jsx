@@ -462,6 +462,25 @@ function ImportExtratoForm({ familia, onImport, onClose }) {
     const lines = csvText.split('\n');
     const results = [];
     
+    const parseCsvLine = (lineStr, delim) => {
+      const lineParts = [];
+      let current = '';
+      let inQuotes = false;
+      for (let i = 0; i < lineStr.length; i++) {
+        const char = lineStr[i];
+        if (char === '"') {
+          inQuotes = !inQuotes;
+        } else if (char === delim && !inQuotes) {
+          lineParts.push(current.trim());
+          current = '';
+        } else {
+          current += char;
+        }
+      }
+      lineParts.push(current.trim());
+      return lineParts.map(p => p.replace(/^["']|["']$/g, '').trim());
+    };
+
     for (const line of lines) {
       const trimmed = line.trim();
       if (!trimmed) continue;
@@ -475,7 +494,7 @@ function ImportExtratoForm({ familia, onImport, onClose }) {
         delimiter = '\t';
       }
       
-      const parts = trimmed.split(delimiter).map(p => p.trim().replace(/^["']|["']$/g, ''));
+      const parts = parseCsvLine(trimmed, delimiter);
       if (parts.length < 2) continue;
       
       let dateStr = todayStr();
