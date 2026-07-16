@@ -54,21 +54,55 @@ export function ContasPage() {
   const [modal, setModal] = useState(null);
   const [filtro, setFiltro] = useState('todas');
   const [busca, setBusca] = useState('');
+  const [periodo, setPeriodo] = useState('mes'); // 'mes', 'trimestre', 'ano', 'custom', 'todos'
+  const [dataInicio, setDataInicio] = useState('');
+  const [dataFim, setDataFim] = useState('');
 
   if (loading) return <LoadingScreen label="Carregando contas..."/>;
   if (error) return <ErrorBanner message={error} onRetry={reload}/>;
 
-  const lista = [...contas].filter(c => {
+  const getPeriodRange = () => {
+    const now = new Date();
+    let start = null;
+    let end = null;
+    
+    if (periodo === 'mes') {
+      start = new Date(now.getFullYear(), now.getMonth(), 1);
+      end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    } else if (periodo === 'trimestre') {
+      start = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+      end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    } else if (periodo === 'ano') {
+      start = new Date(now.getFullYear(), 0, 1);
+      end = new Date(now.getFullYear(), 11, 31);
+    } else if (periodo === 'custom') {
+      if (dataInicio) start = new Date(dataInicio + 'T00:00:00');
+      if (dataFim) end = new Date(dataFim + 'T23:59:59');
+    }
+    return { start, end };
+  };
+
+  const { start, end } = getPeriodRange();
+  const contasFiltradasPorPeriodo = contas.filter(c => {
+    if (periodo === 'todos') return true;
+    if (!c.vencimento) return true;
+    const date = new Date(c.vencimento + 'T00:00:00');
+    if (start && date < start) return false;
+    if (end && date > end) return false;
+    return true;
+  });
+
+  const lista = [...contasFiltradasPorPeriodo].filter(c => {
     if (busca && !c.descricao.toLowerCase().includes(busca.toLowerCase())) return false;
     return filtro === 'todas' || statusOf(c) === filtro;
   }).sort((a,b) => new Date(a.vencimento)-new Date(b.vencimento));
 
-  const total = contas.reduce((s,c)=>s+Number(c.valor),0);
-  const pago = contas.filter(c=>c.status==='paga').reduce((s,c)=>s+Number(c.valor),0);
-  const pendente = contas.filter(c=>c.status!=='paga').reduce((s,c)=>s+Number(c.valor),0);
-  const vencido = contas.filter(c=>c.status!=='paga'&&daysUntil(c.vencimento)<0).reduce((s,c)=>s+Number(c.valor),0);
+  const total = contasFiltradasPorPeriodo.reduce((s,c)=>s+Number(c.valor),0);
+  const pago = contasFiltradasPorPeriodo.filter(c=>c.status==='paga').reduce((s,c)=>s+Number(c.valor),0);
+  const pendente = contasFiltradasPorPeriodo.filter(c=>c.status!=='paga').reduce((s,c)=>s+Number(c.valor),0);
+  const vencido = contasFiltradasPorPeriodo.filter(c=>c.status!=='paga'&&daysUntil(c.vencimento)<0).reduce((s,c)=>s+Number(c.valor),0);
 
-  const porCat = CONTA_CATEGORIAS.map(cat=>({ categoria:cat, valor:contas.filter(c=>c.categoria===cat).reduce((s,c)=>s+Number(c.valor),0) })).filter(c=>c.valor>0).sort((a,b)=>b.valor-a.valor);
+  const porCat = CONTA_CATEGORIAS.map(cat=>({ categoria:cat, valor:contasFiltradasPorPeriodo.filter(c=>c.categoria===cat).reduce((s,c)=>s+Number(c.valor),0) })).filter(c=>c.valor>0).sort((a,b)=>b.valor-a.valor);
 
   const togglePaga = async (c) => {
     const updated = await contasApi.update(c.id, { status: c.status==='paga'?'pendente':'paga' });
@@ -80,13 +114,65 @@ export function ContasPage() {
     if (ok) setModal(null);
   };
 
+  const labelTotal = periodo === 'mes' ? 'Total do mês' : periodo === 'trimestre' ? 'Total do trimestre' : periodo === 'ano' ? 'Total do ano' : periodo === 'todos' ? 'Total de todas as contas' : 'Total do período';
+
   return (
     <div className="fadein">
       <SectionHeader title="Contas da casa" subtitle="Vencimentos, pagamentos e gastos por categoria."
         action={<Btn icon={Plus} onClick={()=>setModal({})}>Nova conta</Btn>}/>
       {actionError && <ErrorBanner message={actionError}/>}
+      
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginBottom: 16, background: 'var(--sm-surface)', border: '1px solid var(--sm-border)', borderRadius: 'var(--radius-lg)', padding: 14 }}>
+        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--sm-text)' }}>Período:</span>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {[
+            { id: 'mes', label: '1 Mês' },
+            { id: 'trimestre', label: 'Trimestral' },
+            { id: 'ano', label: 'Anual' },
+            { id: 'custom', label: 'Especificar Período' },
+            { id: 'todos', label: 'Todos' }
+          ].map(p => (
+            <button
+              key={p.id}
+              onClick={() => setPeriodo(p.id)}
+              style={{
+                padding: '6px 12px',
+                borderRadius: 8,
+                fontSize: 13,
+                fontWeight: 600,
+                border: '1px solid var(--sm-border)',
+                background: periodo === p.id ? 'var(--sm-red)' : 'var(--sm-bg)',
+                color: periodo === p.id ? '#fff' : 'var(--sm-text-soft)',
+                cursor: 'pointer',
+                transition: 'all 0.15s'
+              }}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+        
+        {periodo === 'custom' && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto', flexWrap: 'wrap' }}>
+            <Input
+              type="date"
+              value={dataInicio}
+              onChange={e => setDataInicio(e.target.value)}
+              style={{ width: 130, padding: '6px 10px', fontSize: 12.5 }}
+            />
+            <span style={{ fontSize: 12.5, color: 'var(--sm-text-soft)' }}>até</span>
+            <Input
+              type="date"
+              value={dataFim}
+              onChange={e => setDataFim(e.target.value)}
+              style={{ width: 130, padding: '6px 10px', fontSize: 12.5 }}
+            />
+          </div>
+        )}
+      </div>
+
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(150px,1fr))', gap:12, marginBottom:16 }}>
-        <Metric icon={DollarSign} label="Total do mês" value={fmtMoney(total)}/>
+        <Metric icon={DollarSign} label={labelTotal} value={fmtMoney(total)}/>
         <Metric icon={CheckCircle2} label="Pago" value={fmtMoney(pago)} tone="green"/>
         <Metric icon={Clock} label="Pendente" value={fmtMoney(pendente)} tone="amber"/>
         <Metric icon={AlertTriangle} label="Vencido" value={fmtMoney(vencido)} tone="red"/>
