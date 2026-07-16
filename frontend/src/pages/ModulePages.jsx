@@ -962,16 +962,20 @@ export function FamiliaPage() {
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
-
   const save = async (payload) => {
     setSaving(true); setActionError('');
     try {
-      if (modal?.id) { const u=await authApi.updateMember(modal.id,payload); setFamilia(familia.map(m=>m.id===modal.id?u:m)); }
-      else { const c=await authApi.createMember(payload); setFamilia([...familia,c]); }
+      if (modal?.id) {
+        const { email, password, ...rest } = payload;
+        const u=await authApi.updateMember(modal.id, rest);
+        setFamilia(familia.map(m=>m.id===modal.id?u:m));
+      } else {
+        const c=await authApi.createMember(payload);
+        setFamilia([...familia,c]);
+      }
       setModal(null);
     } catch(e){setActionError(e.message);} finally{setSaving(false);}
   };
-
   const remove = async (id) => {
     try { await authApi.deleteMember(id); setFamilia(familia.filter(m=>m.id!==id)); } catch(e){setActionError(e.message);}
   };
