@@ -251,7 +251,21 @@ export function ContasPage() {
       )}
 
       {activeTab === 'cartoes' && (
-        <CartoesView cartoes={cartoes} contas={contas} saving={savingCartao} save={saveCartao} remove={removeCartao} />
+        <CartoesView 
+          cartoes={cartoes} 
+          contas={contas} 
+          saving={savingCartao} 
+          save={saveCartao} 
+          remove={removeCartao} 
+          onPagarFatura={async (cartaoId) => {
+            if (!confirm('Deseja marcar todas as contas pendentes deste cartão como pagas?')) return;
+            const pendentes = contas.filter(c => c.cartao_id === cartaoId && c.status !== 'paga');
+            for(const p of pendentes) {
+              await contasApi.update(p.id, { status: 'paga' });
+            }
+            reload();
+          }}
+        />
       )}
 
       {modal!==null && (
@@ -263,6 +277,8 @@ export function ContasPage() {
         <Modal title="Importar Extrato Bancário" onClose={() => setImportModalOpen(false)} width={780}>
           <ImportExtratoForm
             familia={familia}
+            cartoes={cartoes}
+            contasExistentes={contas}
             cartoes={cartoes}
             onImport={async (contasParaImportar) => {
               for (const c of contasParaImportar) {
@@ -435,6 +451,11 @@ const parseStatementText = (text) => {
     let desc = cleanedLine.replace(/R\$\s*/g, '').replace(/[\-\+]$/, '').trim();
     if (!desc) desc = 'Transação sem descrição';
     
+    const descLower = desc.toLowerCase();
+    if (descLower.includes('pagamento recebido') || descLower.includes('pagamento de fatura') || descLower.includes('fatura paga')) {
+      continue;
+    }
+
     const { cat, just } = categorizarTransacao(desc);
     
     results.push({
@@ -450,7 +471,7 @@ const parseStatementText = (text) => {
   return results;
 };
 
-function ImportExtratoForm({ familia, cartoes, onImport, onClose }) {
+function ImportExtratoForm({ familia, cartoes, contasExistentes, onImport, onClose }) {
   const [file, setFile] = useState(null);
   const [defaultResponsavel, setDefaultResponsavel] = useState('');
   const [defaultCartao, setDefaultCartao] = useState('');
@@ -567,14 +588,26 @@ function ImportExtratoForm({ familia, cartoes, onImport, onClose }) {
         desc = parts.find(p => !dateRegex.test(p) && isNaN(parseFloat(p))) || 'Transação';
       }
       
+      const descLower = desc.toLowerCase();
+      if (descLower.includes('pagamento recebido') || descLower.includes('pagamento de fatura') || descLower.includes('fatura paga')) {
+        continue;
+      }
+
+      // Check duplicidade
+      const isDuplicated = contasExistentes?.some(c => 
+        c.descricao.toLowerCase() === descLower &&
+        Number(c.valor) === value &&
+        c.vencimento === dateStr
+      );
+      
       results.push({
         descricao: desc,
         valor: value,
         vencimento: dateStr,
         categoria: 'Cartões',
         forma: 'Cartão',
-        justificativa: 'Fatura de cartão de crédito (CSV).',
-        selected: true
+        justificativa: isDuplicated ? '⚠️ Já existe no sistema!' : 'Fatura de cartão de crédito (CSV).',
+        selected: !isDuplicated
       });
     }
     
@@ -610,15 +643,26 @@ function ImportExtratoForm({ familia, cartoes, onImport, onClose }) {
       }
       
       if (parsed.length === 0) {
-        throw new Error('Nenhuma transação foi identificada no arquivo. Verifique o formato.');
+        throw new Error('Nenhuma transação válida foi identificada no arquivo (pagamentos de fatura são ignorados automaticamente).');
       }
 
-      const mapped = parsed.map(p => ({
-        ...p,
-        responsavel: defaultResponsavel || (familia[0]?.nome || ''),
-        cartao_id: defaultCartao || '',
-        visibilidade: defaultVisibilidade || 'Geral'
-      }));
+      // Check deduplication again for PDF just in case
+      const mapped = parsed.map(p => {
+        const isDuplicated = contasExistentes?.some(c => 
+          c.descricao.toLowerCase() === p.descricao.toLowerCase() &&
+          Number(c.valor) === p.valor &&
+          c.vencimento === p.vencimento
+        );
+        
+        return {
+          ...p,
+          responsavel: defaultResponsavel || (familia[0]?.nome || ''),
+          cartao_id: defaultCartao || '',
+          visibilidade: defaultVisibilidade || 'Geral',
+          selected: p.selected !== undefined ? p.selected : !isDuplicated,
+          justificativa: isDuplicated ? '⚠️ Já existe no sistema!' : p.justificativa
+        };
+      });
       setPreview(mapped);
       setStep(2);
     } catch (err) {
@@ -875,7 +919,7 @@ function CartaoForm({ cartao, saving, onSave, onClose }) {
   );
 }
 
-function CartoesView({ cartoes, contas, saving, save, remove }) {
+function CartoesView({ cartoes, contas, saving, save, remove, onPagarFatura }) {
   const [modal, setModal] = useState(null);
 
   const handleSave = async (payload) => {
@@ -936,6 +980,14 @@ function CartoesView({ cartoes, contas, saving, save, remove }) {
                       {bancoInfo.bandeira}
                     </div>
                   </div>
+                  
+                  {faturaAtual > 0 && (
+                    <div style={{ marginTop: 20 }}>
+                      <Btn variant="primary" style={{ width: '100%', background: 'rgba(255,255,255,0.2)', border: 'none', color: 'inherit' }} onClick={() => onPagarFatura && onPagarFatura(c.id)}>
+                        Pagar Fatura Atual
+                      </Btn>
+                    </div>
+                  )}
                 </div>
               </Card>
             );
