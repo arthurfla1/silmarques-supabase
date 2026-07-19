@@ -54,4 +54,4 @@ create policy "Membros podem deletar investimentos da familia" on investimentos 
 
 -- Trigger para updated_at
 create trigger handle_updated_at before update on investimentos
-  for each row execute procedure moddatetime (updated_at);
+  for each row execute function update_updated_at();
