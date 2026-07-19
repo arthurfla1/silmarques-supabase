@@ -30,25 +30,25 @@ alter table investimentos enable row level security;
 -- Políticas de segurança
 create policy "Membros podem ver investimentos da familia" on investimentos for select using (
   household_id in (
-    select household_id from household_members where user_id = auth.uid()
+    select household_id from profiles where id = auth.uid()
   )
 );
 
 create policy "Membros podem inserir investimentos na familia" on investimentos for insert with check (
   household_id in (
-    select household_id from household_members where user_id = auth.uid()
+    select household_id from profiles where id = auth.uid()
   )
 );
 
 create policy "Membros podem atualizar investimentos da familia" on investimentos for update using (
   household_id in (
-    select household_id from household_members where user_id = auth.uid()
+    select household_id from profiles where id = auth.uid()
   )
 );
 
 create policy "Membros podem deletar investimentos da familia" on investimentos for delete using (
   household_id in (
-    select household_id from household_members where user_id = auth.uid()
+    select household_id from profiles where id = auth.uid()
   )
 );
 
