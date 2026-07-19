@@ -905,8 +905,11 @@ function CartoesView({ cartoes, contas, saving, save, remove }) {
               <Card key={c.id} style={{ position: 'relative', overflow: 'hidden', padding: 0, border: 'none', background: `linear-gradient(135deg, ${bancoInfo.cor} 0%, ${bancoInfo.cor}dd 100%)`, color: bancoInfo.textoDark ? '#000' : '#fff', boxShadow: '0 8px 16px rgba(0,0,0,0.1)' }}>
                 <div style={{ padding: 20 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
-                    <div style={{ fontWeight: 700, fontSize: 18, letterSpacing: 0.5 }}>{c.nome}</div>
-                    <div style={{ fontSize: 12, opacity: 0.9, fontWeight: 600 }}>{bancoInfo.bandeira}</div>
+                    <div style={{ fontWeight: 700, fontSize: 18, letterSpacing: 0.5, flex: 1, paddingRight: 8 }}>{c.nome}</div>
+                    <div style={{ display: 'flex', gap: 4, opacity: 0.8 }}>
+                      <button onClick={() => setModal(c)} style={{ background: 'transparent', border: 'none', color: 'inherit', cursor: 'pointer', padding: 4 }}><Edit2 size={16} /></button>
+                      <button onClick={() => remove(c.id)} style={{ background: 'transparent', border: 'none', color: 'inherit', cursor: 'pointer', padding: 4 }}><Trash2 size={16} /></button>
+                    </div>
                   </div>
                   
                   <div style={{ marginBottom: 20 }}>
@@ -924,15 +927,15 @@ function CartoesView({ cartoes, contas, saving, save, remove }) {
                     </div>
                   </div>
                   
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 16, fontSize: 12, opacity: 0.8 }}>
-                    <span>Vencimento dia {c.dia_vencimento}</span>
-                    <span>Fechamento dia {c.dia_fechamento}</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: 16 }}>
+                    <div style={{ fontSize: 12, opacity: 0.8, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                      <span>Vencimento dia {c.dia_vencimento}</span>
+                      <span>Fechamento dia {c.dia_fechamento}</span>
+                    </div>
+                    <div style={{ fontSize: 14, opacity: 0.9, fontWeight: 700, letterSpacing: 0.5, fontStyle: 'italic' }}>
+                      {bancoInfo.bandeira}
+                    </div>
                   </div>
-                </div>
-                
-                <div style={{ position: 'absolute', top: 12, right: 12, display: 'flex', gap: 4, opacity: 0.7, ':hover': { opacity: 1 } }}>
-                  <button onClick={() => setModal(c)} style={{ background: 'transparent', border: 'none', color: 'inherit', cursor: 'pointer', padding: 4 }}><Edit2 size={16} /></button>
-                  <button onClick={() => remove(c.id)} style={{ background: 'transparent', border: 'none', color: 'inherit', cursor: 'pointer', padding: 4 }}><Trash2 size={16} /></button>
                 </div>
               </Card>
             );
