@@ -168,6 +168,7 @@ function makeTableApi(table, orderBy = 'created_at') {
 
 // ── MÓDULOS ──────────────────────────────────────────────────
 export const contasApi = makeTableApi('contas', 'vencimento');
+export const cartoesApi = makeTableApi('cartoes', 'nome');
 export const estoqueApi = makeTableApi('estoque', 'nome');
 export const comprasApi = {
   ...makeTableApi('lista_compras', 'created_at'),
@@ -239,11 +240,12 @@ export const dashboardApi = {
     const today = new Date().toISOString().slice(0, 10);
 
     const [
-      { data: contas }, { data: estoque }, { data: limpeza },
+      { data: contas }, { data: cartoes }, { data: estoque }, { data: limpeza },
       { data: veiculos }, { data: documentos }, { data: patrimonio },
       { data: compras },
     ] = await Promise.all([
       supabase.from('contas').select('*').eq('household_id', household_id),
+      supabase.from('cartoes').select('*').eq('household_id', household_id),
       supabase.from('estoque').select('*').eq('household_id', household_id),
       supabase.from('limpeza').select('*').eq('household_id', household_id),
       supabase.from('veiculos').select('*, manutencoes(valor)').eq('household_id', household_id),
@@ -300,6 +302,8 @@ export const dashboardApi = {
     return {
       health_pct: Math.round((ok / 6) * 100),
       financeiro: { gastos_mes: gastosMes, gastos_pagos: gastosPagos, gastos_pendentes: gastosPendentes },
+      todas_contas: contas || [],
+      cartoes: cartoes || [],
       tarefas_concluidas_hoje: tarefasConcluidasHoje,
       contas_vencidas: contasVencidas,
       contas_proximas: contasProximas,

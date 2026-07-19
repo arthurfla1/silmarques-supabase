@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { Plus, Edit2, Trash2, Search, CheckCircle2, Circle, DollarSign, Clock, AlertTriangle, Package, ShoppingCart, Apple, Check, Sparkles, Car, Wrench, Shield, FileText, Award, Users, Phone, Mail, BarChart3, Download, MapPin, Receipt, Link as LinkIcon } from 'lucide-react';
-import { contasApi, estoqueApi, comprasApi, limpezaApi, veiculosApi, documentosApi, patrimonioApi, authApi, dashboardApi } from '../api/db';
+import { Plus, Edit2, Trash2, Search, CheckCircle2, Circle, DollarSign, Clock, AlertTriangle, Package, ShoppingCart, Apple, Check, Sparkles, Car, Wrench, Shield, FileText, Award, Users, Phone, Mail, BarChart3, Download, MapPin, Receipt, Link as LinkIcon, CreditCard } from 'lucide-react';
+import { contasApi, cartoesApi, estoqueApi, comprasApi, limpezaApi, veiculosApi, documentosApi, patrimonioApi, authApi, dashboardApi } from '../api/db';
 import { useApiList } from '../hooks/useApiList';
 import { useFamilia } from '../context/contexts';
 import { useAuth } from '../context/AuthContext';
 
 import { Card, SectionHeader, Btn, Input, Select, Field, Modal, TextArea, Badge, IconBtn, EmptyState, Metric, ProgressBar, Avatar, LoadingScreen, ErrorBanner, FileUploader } from '../components/ui';
-import { CONTA_CATEGORIAS, ESTOQUE_CATEGORIAS, ESTOQUE_LOCAIS, LIMPEZA_AMBIENTES, LIMPEZA_FREQ, LIMPEZA_PRIORIDADES, VEICULO_CATEGORIAS, DOC_CATEGORIAS, BEM_CATEGORIAS, COMPRA_UNIDADES, MERCADO_CATEGORIAS, PERMISSOES, FEIRA_ITENS, CAR_BRANDS, fmtMoney, fmtDate, todayStr, addDays, daysUntil, downloadCSV } from '../lib/constants';
+import { CONTA_CATEGORIAS, ESTOQUE_CATEGORIAS, ESTOQUE_LOCAIS, LIMPEZA_AMBIENTES, LIMPEZA_FREQ, LIMPEZA_PRIORIDADES, VEICULO_CATEGORIAS, DOC_CATEGORIAS, BEM_CATEGORIAS, COMPRA_UNIDADES, MERCADO_CATEGORIAS, PERMISSOES, FEIRA_ITENS, CAR_BRANDS, CARTOES_BANCOS, VISIBILIDADE_OPCOES, fmtMoney, fmtDate, todayStr, addDays, daysUntil, downloadCSV } from '../lib/constants';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, CartesianGrid, LineChart, Line } from 'recharts';
 
 const COLORS = ['#D32F2F','#1565C0','#2E7D32','#B8740A','#6A4C93','#00897B'];
@@ -58,8 +58,10 @@ export function ContasPage() {
   const [dataInicio, setDataInicio] = useState('');
   const [dataFim, setDataFim] = useState('');
   const [importModalOpen, setImportModalOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState('contas');
+  const { data:cartoes, setData:setCartoes, loading:loadingCartoes, error:errorCartoes, reload:reloadCartoes, saving:savingCartao, actionError:actionErrorCartao, save:saveCartao, remove:removeCartao } = useCRUD(cartoesApi);
 
-  if (loading) return <LoadingScreen label="Carregando contas..."/>;
+  if (loading || loadingCartoes) return <LoadingScreen label="Carregando dados..."/>;
   if (error) return <ErrorBanner message={error} onRetry={reload}/>;
 
   const getPeriodRange = () => {
@@ -128,7 +130,18 @@ export function ContasPage() {
         }/>
       {actionError && <ErrorBanner message={actionError}/>}
       
-      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginBottom: 16, background: 'var(--sm-surface)', border: '1px solid var(--sm-border)', borderRadius: 'var(--radius-lg)', padding: 14 }}>
+      <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
+        <button onClick={() => setActiveTab('contas')} style={{ flex: 1, padding: 12, borderRadius: 12, border: 'none', background: activeTab === 'contas' ? 'var(--sm-red)' : 'var(--sm-surface)', color: activeTab === 'contas' ? '#fff' : 'var(--sm-text-soft)', fontWeight: 600, fontSize: 14, cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+          <Receipt size={18} /> Histórico de Contas
+        </button>
+        <button onClick={() => setActiveTab('cartoes')} style={{ flex: 1, padding: 12, borderRadius: 12, border: 'none', background: activeTab === 'cartoes' ? 'var(--sm-red)' : 'var(--sm-surface)', color: activeTab === 'cartoes' ? '#fff' : 'var(--sm-text-soft)', fontWeight: 600, fontSize: 14, cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+          <CreditCard size={18} /> Meus Cartões
+        </button>
+      </div>
+
+      {activeTab === 'contas' && (
+        <>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginBottom: 16, background: 'var(--sm-surface)', border: '1px solid var(--sm-border)', borderRadius: 'var(--radius-lg)', padding: 14 }}>
         <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--sm-text)' }}>Período:</span>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {[
@@ -207,13 +220,17 @@ export function ContasPage() {
         <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
           {lista.map(c=>{
             const st=statusOf(c);
+            const isIndividual = c.visibilidade === 'Individual';
             return (
               <Card key={c.id} style={{ display:'flex', alignItems:'center', gap:12, flexWrap:'wrap' }}>
                 <button onClick={()=>togglePaga(c)} style={{ background:'transparent', border:'none', color:c.status==='paga'?'var(--sm-green)':'var(--sm-text-faint)', display:'flex', cursor:'pointer' }}>
                   {c.status==='paga'?<CheckCircle2 size={24}/>:<Circle size={24}/>}
                 </button>
                 <div style={{ flex:'1 1 180px', minWidth:0 }}>
-                  <div style={{ fontWeight:600, fontSize:14.5, textDecoration:c.status==='paga'?'line-through':'none', color:c.status==='paga'?'var(--sm-text-faint)':'var(--sm-text)' }}>{c.descricao}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <div style={{ fontWeight:600, fontSize:14.5, textDecoration:c.status==='paga'?'line-through':'none', color:c.status==='paga'?'var(--sm-text-faint)':'var(--sm-text)' }}>{c.descricao}</div>
+                    {isIndividual && <Badge tone="neutral" style={{ fontSize: 10 }}>Individual</Badge>}
+                  </div>
                   <div style={{ fontSize:12.5, color:'var(--sm-text-soft)', marginTop:2 }}>{c.categoria} · {c.forma||'—'} · {c.responsavel||'—'}</div>
                 </div>
                 <Badge tone={STATUS_INFO[st].t}>{STATUS_INFO[st].l}</Badge>
@@ -230,15 +247,23 @@ export function ContasPage() {
           })}
         </div>
       )}
+      </>
+      )}
+
+      {activeTab === 'cartoes' && (
+        <CartoesView cartoes={cartoes} contas={contas} saving={savingCartao} save={saveCartao} remove={removeCartao} />
+      )}
+
       {modal!==null && (
         <Modal title={modal.id?'Editar conta':'Nova conta'} onClose={()=>setModal(null)}>
-          <ContaForm conta={modal.id?modal:null} familia={familia} saving={saving} onSave={handleSave} onClose={()=>setModal(null)}/>
+          <ContaForm conta={modal.id?modal:null} cartoes={cartoes} familia={familia} saving={saving} onSave={handleSave} onClose={()=>setModal(null)}/>
         </Modal>
       )}
       {importModalOpen && (
         <Modal title="Importar Extrato Bancário" onClose={() => setImportModalOpen(false)} width={780}>
           <ImportExtratoForm
             familia={familia}
+            cartoes={cartoes}
             onImport={async (contasParaImportar) => {
               for (const c of contasParaImportar) {
                 await contasApi.create({
@@ -247,6 +272,8 @@ export function ContasPage() {
                   valor: c.valor,
                   vencimento: c.vencimento,
                   responsavel: c.responsavel || null,
+                  cartao_id: c.cartao_id || null,
+                  visibilidade: c.visibilidade || 'Geral',
                   forma: c.forma || 'Boleto',
                   status: 'pendente'
                 });
@@ -423,9 +450,11 @@ const parseStatementText = (text) => {
   return results;
 };
 
-function ImportExtratoForm({ familia, onImport, onClose }) {
+function ImportExtratoForm({ familia, cartoes, onImport, onClose }) {
   const [file, setFile] = useState(null);
   const [defaultResponsavel, setDefaultResponsavel] = useState('');
+  const [defaultCartao, setDefaultCartao] = useState('');
+  const [defaultVisibilidade, setDefaultVisibilidade] = useState('Geral');
   const [preview, setPreview] = useState([]);
   const [step, setStep] = useState(1);
   const [saving, setSaving] = useState(false);
@@ -479,12 +508,21 @@ function ImportExtratoForm({ familia, onImport, onClose }) {
         }
       }
       lineParts.push(current.trim());
-      return lineParts.map(p => p.replace(/^["']|["']$/g, '').trim());
+      return lineParts;
     };
 
+    let isFirstLine = true;
     for (const line of lines) {
       const trimmed = line.trim();
       if (!trimmed) continue;
+      
+      if (isFirstLine) {
+        isFirstLine = false;
+        const lower = trimmed.toLowerCase();
+        if (lower.includes('date') || lower.includes('title') || lower.includes('amount') || lower.includes('descricao') || lower.includes('valor') || lower.includes('data')) {
+          continue;
+        }
+      }
       
       let delimiter = ';';
       if (trimmed.includes(',')) {
@@ -577,7 +615,9 @@ function ImportExtratoForm({ familia, onImport, onClose }) {
 
       const mapped = parsed.map(p => ({
         ...p,
-        responsavel: defaultResponsavel || (familia[0]?.nome || '')
+        responsavel: defaultResponsavel || (familia[0]?.nome || ''),
+        cartao_id: defaultCartao || '',
+        visibilidade: defaultVisibilidade || 'Geral'
       }));
       setPreview(mapped);
       setStep(2);
@@ -609,14 +649,36 @@ function ImportExtratoForm({ familia, onImport, onClose }) {
           </div>
           {errorFile && <ErrorBanner message={errorFile} />}
           
-          <Field label="Responsável Padrão pelas Contas">
-            <Select value={defaultResponsavel} onChange={e => setDefaultResponsavel(e.target.value)}>
-              <option value="">Selecione quem será o responsável...</option>
-              {familia.filter(m => m.status !== 'pendente').map(m => (
-                <option key={m.id} value={m.nome}>{m.nome}</option>
-              ))}
-            </Select>
-          </Field>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 16 }}>
+            <div style={{ flex: '1 1 200px' }}>
+              <Field label="Responsável Padrão (Opcional)">
+                <Select value={defaultResponsavel} onChange={e => setDefaultResponsavel(e.target.value)}>
+                  <option value="">Não definido</option>
+                  {familia.filter(m => m.status !== 'pendente').map(m => (
+                    <option key={m.id} value={m.nome}>{m.nome}</option>
+                  ))}
+                </Select>
+              </Field>
+            </div>
+            <div style={{ flex: '1 1 200px' }}>
+              <Field label="Visibilidade Padrão">
+                <Select value={defaultVisibilidade} onChange={e => setDefaultVisibilidade(e.target.value)}>
+                  <option value="Geral">Geral (Todos veem)</option>
+                  <option value="Individual">Individual</option>
+                </Select>
+              </Field>
+            </div>
+            {cartoes && cartoes.length > 0 && (
+              <div style={{ flex: '1 1 200px' }}>
+                <Field label="Vincular Cartão (Opcional)">
+                  <Select value={defaultCartao} onChange={e => setDefaultCartao(e.target.value)}>
+                    <option value="">Nenhum cartão</option>
+                    {cartoes.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                  </Select>
+                </Field>
+              </div>
+            )}
+          </div>
           
           <Field label="Selecionar Arquivo de Extrato (PDF ou CSV)">
             <div style={{
@@ -656,7 +718,7 @@ function ImportExtratoForm({ familia, onImport, onClose }) {
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 6 }}>
             <Btn variant="secondary" onClick={onClose} disabled={loadingFile}>Cancelar</Btn>
             <Btn onClick={handleAnalisar} disabled={!file || loadingFile}>
-              {loadingFile ? 'Lendo e Analisando...' : 'Analisar e Categorizar'}
+              {loadingFile ? 'Analisando...' : 'Analisar Arquivo'}
             </Btn>
           </div>
         </>
@@ -674,7 +736,7 @@ function ImportExtratoForm({ familia, onImport, onClose }) {
                   <th style={{ padding: 10, width: 120 }}>Vencimento</th>
                   <th style={{ padding: 10, width: 100 }}>Valor</th>
                   <th style={{ padding: 10, width: 160 }}>Categoria</th>
-                  <th style={{ padding: 10, width: 140 }}>Responsável</th>
+                  <th style={{ padding: 10, width: 180 }}>Atribuições</th>
                 </tr>
               </thead>
               <tbody>
@@ -725,7 +787,7 @@ function ImportExtratoForm({ familia, onImport, onClose }) {
                         {CONTA_CATEGORIAS.map(c => <option key={c} value={c}>{c}</option>)}
                       </Select>
                     </td>
-                    <td style={{ padding: 10 }}>
+                    <td style={{ padding: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
                       <Select
                         value={item.responsavel}
                         onChange={e => {
@@ -733,12 +795,38 @@ function ImportExtratoForm({ familia, onImport, onClose }) {
                           newPreview[idx].responsavel = e.target.value;
                           setPreview(newPreview);
                         }}
-                        style={{ padding: '4px 6px', fontSize: 12 }}
+                        style={{ padding: '4px 6px', fontSize: 11 }}
                       >
+                        <option value="">Não definido</option>
                         {familia.filter(m => m.status !== 'pendente').map(m => (
                           <option key={m.id} value={m.nome}>{m.nome}</option>
                         ))}
                       </Select>
+                      <Select
+                        value={item.visibilidade}
+                        onChange={e => {
+                          const newPreview = [...preview];
+                          newPreview[idx].visibilidade = e.target.value;
+                          setPreview(newPreview);
+                        }}
+                        style={{ padding: '4px 6px', fontSize: 11 }}
+                      >
+                        {VISIBILIDADE_OPCOES.map(v => <option key={v} value={v}>{v}</option>)}
+                      </Select>
+                      {item.forma === 'Cartão' && cartoes && cartoes.length > 0 && (
+                        <Select
+                          value={item.cartao_id}
+                          onChange={e => {
+                            const newPreview = [...preview];
+                            newPreview[idx].cartao_id = e.target.value;
+                            setPreview(newPreview);
+                          }}
+                          style={{ padding: '4px 6px', fontSize: 11 }}
+                        >
+                          <option value="">Nenhum cartão</option>
+                          {cartoes.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                        </Select>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -760,25 +848,153 @@ function ImportExtratoForm({ familia, onImport, onClose }) {
   );
 }
 
-function ContaForm({ conta, familia, saving, onSave, onClose }) {
-  const [form, setForm] = useState(conta?{ descricao:conta.descricao, categoria:conta.categoria, valor:conta.valor, vencimento:conta.vencimento, responsavel:conta.responsavel||'', forma:conta.forma||'Boleto', status:conta.status }:{ descricao:'', categoria:CONTA_CATEGORIAS[0], valor:'', vencimento:addDays(7), responsavel:familia[0]?.nome||'', forma:'Boleto', status:'pendente' });
-  const set=(k,v)=>setForm(f=>({...f,[k]:v}));
+function CartaoForm({ cartao, saving, onSave, onClose }) {
+  const [form, setForm] = useState(cartao ? { ...cartao } : { nome: '', banco: CARTOES_BANCOS[0].nome, limite: '', dia_vencimento: 10, dia_fechamento: 1 });
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  
   return (
-    <form onSubmit={e=>{e.preventDefault();onSave({...form,valor:Number(form.valor)});}} style={{ display:'flex', flexDirection:'column', gap:14 }}>
-      <Field label="Descrição"><Input required value={form.descricao} onChange={e=>set('descricao',e.target.value)} placeholder="Ex: Conta de luz"/></Field>
+    <form onSubmit={e => { e.preventDefault(); onSave({ ...form, limite: Number(form.limite) }); }} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <Field label="Nome ou Apelido do Cartão"><Input required value={form.nome} onChange={e => set('nome', e.target.value)} placeholder="Ex: Nubank Principal" /></Field>
       <div className="grid-2">
-        <Field label="Categoria"><Select value={form.categoria} onChange={e=>set('categoria',e.target.value)}>{CONTA_CATEGORIAS.map(c=><option key={c}>{c}</option>)}</Select></Field>
-        <Field label="Valor (R$)"><Input required type="number" step="0.01" min="0" value={form.valor} onChange={e=>set('valor',e.target.value)}/></Field>
+        <Field label="Banco Emissor">
+          <Select value={form.banco} onChange={e => set('banco', e.target.value)}>
+            {CARTOES_BANCOS.map(b => <option key={b.nome} value={b.nome}>{b.nome}</option>)}
+          </Select>
+        </Field>
+        <Field label="Limite (R$)"><Input required type="number" step="0.01" min="0" value={form.limite} onChange={e => set('limite', e.target.value)} /></Field>
       </div>
       <div className="grid-2">
-        <Field label="Vencimento"><Input required type="date" value={form.vencimento} onChange={e=>set('vencimento',e.target.value)}/></Field>
-        <Field label="Forma"><Select value={form.forma} onChange={e=>set('forma',e.target.value)}>{['Boleto','Débito automático','Cartão','Pix','Dinheiro'].map(f=><option key={f}>{f}</option>)}</Select></Field>
+        <Field label="Dia do Vencimento"><Input required type="number" min="1" max="31" value={form.dia_vencimento} onChange={e => set('dia_vencimento', Number(e.target.value))} /></Field>
+        <Field label="Dia do Fechamento"><Input required type="number" min="1" max="31" value={form.dia_fechamento} onChange={e => set('dia_fechamento', Number(e.target.value))} /></Field>
       </div>
-      <Field label="Responsável"><Select value={form.responsavel} onChange={e=>set('responsavel',e.target.value)}><option value="">—</option>{familia.filter(m=>m.status!=='pendente').map(m=><option key={m.id} value={m.nome}>{m.nome}</option>)}</Select></Field>
-      <label style={{ display:'flex', alignItems:'center', gap:8, fontSize:14 }}><input type="checkbox" checked={form.status==='paga'} onChange={e=>set('status',e.target.checked?'paga':'pendente')}/> Marcar como paga</label>
-      <div style={{ display:'flex', justifyContent:'flex-end', gap:10, marginTop:6 }}>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 6 }}>
         <Btn variant="secondary" onClick={onClose}>Cancelar</Btn>
-        <Btn type="submit" disabled={saving}>{saving?'Salvando...':'Salvar'}</Btn>
+        <Btn type="submit" disabled={saving}>{saving ? 'Salvando...' : 'Salvar Cartão'}</Btn>
+      </div>
+    </form>
+  );
+}
+
+function CartoesView({ cartoes, contas, saving, save, remove }) {
+  const [modal, setModal] = useState(null);
+
+  const handleSave = async (payload) => {
+    const ok = await save(payload, modal?.id);
+    if (ok) setModal(null);
+  };
+
+  const getFaturaAtual = (cartaoId) => {
+    return contas.filter(c => c.cartao_id === cartaoId && c.status !== 'paga').reduce((sum, c) => sum + Number(c.valor), 0);
+  };
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+        <Btn icon={Plus} onClick={() => setModal({})}>Novo Cartão</Btn>
+      </div>
+      
+      {cartoes.length === 0 ? <EmptyState icon={CreditCard} title="Nenhum cartão cadastrado" /> : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16 }}>
+          {cartoes.map(c => {
+            const bancoInfo = CARTOES_BANCOS.find(b => b.nome === c.banco) || CARTOES_BANCOS[CARTOES_BANCOS.length - 1];
+            const faturaAtual = getFaturaAtual(c.id);
+            const limiteDisponivel = Math.max(0, Number(c.limite) - faturaAtual);
+            const pct = Math.min(100, (faturaAtual / (Number(c.limite) || 1)) * 100);
+            
+            return (
+              <Card key={c.id} style={{ position: 'relative', overflow: 'hidden', padding: 0, border: 'none', background: `linear-gradient(135deg, ${bancoInfo.cor} 0%, ${bancoInfo.cor}dd 100%)`, color: bancoInfo.textoDark ? '#000' : '#fff', boxShadow: '0 8px 16px rgba(0,0,0,0.1)' }}>
+                <div style={{ padding: 20 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+                    <div style={{ fontWeight: 700, fontSize: 18, letterSpacing: 0.5 }}>{c.nome}</div>
+                    <div style={{ fontSize: 12, opacity: 0.9, fontWeight: 600 }}>{bancoInfo.bandeira}</div>
+                  </div>
+                  
+                  <div style={{ marginBottom: 20 }}>
+                    <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 2 }}>Fatura Atual</div>
+                    <div style={{ fontSize: 28, fontWeight: 800 }}>{fmtMoney(faturaAtual)}</div>
+                  </div>
+                  
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, opacity: 0.9, marginBottom: 6 }}>
+                      <span>Limite Disp. {fmtMoney(limiteDisponivel)}</span>
+                      <span>Total {fmtMoney(c.limite)}</span>
+                    </div>
+                    <div style={{ height: 6, background: 'rgba(255,255,255,0.3)', borderRadius: 3, overflow: 'hidden' }}>
+                      <div style={{ height: '100%', background: bancoInfo.textoDark ? '#000' : '#fff', width: `${pct}%`, borderRadius: 3 }}></div>
+                    </div>
+                  </div>
+                  
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 16, fontSize: 12, opacity: 0.8 }}>
+                    <span>Vencimento dia {c.dia_vencimento}</span>
+                    <span>Fechamento dia {c.dia_fechamento}</span>
+                  </div>
+                </div>
+                
+                <div style={{ position: 'absolute', top: 12, right: 12, display: 'flex', gap: 4, opacity: 0.7, ':hover': { opacity: 1 } }}>
+                  <button onClick={() => setModal(c)} style={{ background: 'transparent', border: 'none', color: 'inherit', cursor: 'pointer', padding: 4 }}><Edit2 size={16} /></button>
+                  <button onClick={() => remove(c.id)} style={{ background: 'transparent', border: 'none', color: 'inherit', cursor: 'pointer', padding: 4 }}><Trash2 size={16} /></button>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+      
+      {modal !== null && (
+        <Modal title={modal.id ? 'Editar Cartão' : 'Novo Cartão'} onClose={() => setModal(null)}>
+          <CartaoForm cartao={modal.id ? modal : null} saving={saving} onSave={handleSave} onClose={() => setModal(null)} />
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+function ContaForm({ conta, cartoes, familia, saving, onSave, onClose }) {
+  const [form, setForm] = useState(conta ? { 
+    descricao: conta.descricao, categoria: conta.categoria, valor: conta.valor, 
+    vencimento: conta.vencimento, responsavel: conta.responsavel || '', 
+    forma: conta.forma || 'Boleto', status: conta.status, 
+    cartao_id: conta.cartao_id || '', visibilidade: conta.visibilidade || 'Geral' 
+  } : { 
+    descricao: '', categoria: CONTA_CATEGORIAS[0], valor: '', vencimento: addDays(7), 
+    responsavel: familia[0]?.nome || '', forma: 'Boleto', status: 'pendente', 
+    cartao_id: '', visibilidade: 'Geral' 
+  });
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  return (
+    <form onSubmit={e => { e.preventDefault(); onSave({ ...form, valor: Number(form.valor) }); }} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <Field label="Descrição"><Input required value={form.descricao} onChange={e => set('descricao', e.target.value)} placeholder="Ex: Conta de luz" /></Field>
+      <div className="grid-2">
+        <Field label="Categoria"><Select value={form.categoria} onChange={e => set('categoria', e.target.value)}>{CONTA_CATEGORIAS.map(c => <option key={c}>{c}</option>)}</Select></Field>
+        <Field label="Valor (R$)"><Input required type="number" step="0.01" min="0" value={form.valor} onChange={e => set('valor', e.target.value)} /></Field>
+      </div>
+      <div className="grid-2">
+        <Field label="Vencimento"><Input required type="date" value={form.vencimento} onChange={e => set('vencimento', e.target.value)} /></Field>
+        <Field label="Forma de Pagamento">
+          <Select value={form.forma} onChange={e => { set('forma', e.target.value); if (e.target.value !== 'Cartão') set('cartao_id', ''); }}>
+            {['Boleto', 'Débito automático', 'Cartão', 'Pix', 'Dinheiro'].map(f => <option key={f}>{f}</option>)}
+          </Select>
+        </Field>
+      </div>
+      
+      {form.forma === 'Cartão' && cartoes && cartoes.length > 0 && (
+        <Field label="Cartão de Crédito">
+          <Select value={form.cartao_id} onChange={e => set('cartao_id', e.target.value)}>
+            <option value="">Não especificado</option>
+            {cartoes.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+          </Select>
+        </Field>
+      )}
+      
+      <div className="grid-2">
+        <Field label="Responsável"><Select value={form.responsavel} onChange={e => set('responsavel', e.target.value)}><option value="">—</option>{familia.filter(m => m.status !== 'pendente').map(m => <option key={m.id} value={m.nome}>{m.nome}</option>)}</Select></Field>
+        <Field label="Visibilidade"><Select value={form.visibilidade} onChange={e => set('visibilidade', e.target.value)}>{VISIBILIDADE_OPCOES.map(v => <option key={v}>{v}</option>)}</Select></Field>
+      </div>
+      
+      <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14 }}><input type="checkbox" checked={form.status === 'paga'} onChange={e => set('status', e.target.checked ? 'paga' : 'pendente')} /> Marcar como paga</label>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 6 }}>
+        <Btn variant="secondary" onClick={onClose}>Cancelar</Btn>
+        <Btn type="submit" disabled={saving}>{saving ? 'Salvando...' : 'Salvar'}</Btn>
       </div>
     </form>
   );

@@ -56,6 +56,21 @@ export const CAR_BRANDS = {
   'Mini': ['Mini Cooper','Mini Countryman'],
   'Outra': ['Outro modelo'],
 };
+export const CARTOES_BANCOS = [
+  { nome: 'Nubank', cor: '#8A05BE', bandeira: 'Mastercard' },
+  { nome: 'Banco do Brasil', cor: '#FCE700', bandeira: 'Ourocard', textoDark: true },
+  { nome: 'Itaú', cor: '#EC7000', bandeira: 'Mastercard' },
+  { nome: 'C6 Bank', cor: '#242424', bandeira: 'Mastercard' },
+  { nome: 'Bradesco', cor: '#CC092F', bandeira: 'Visa' },
+  { nome: 'Santander', cor: '#EC0000', bandeira: 'Mastercard' },
+  { nome: 'Caixa', cor: '#005CA9', bandeira: 'Visa' },
+  { nome: 'Inter', cor: '#FF7A00', bandeira: 'Mastercard' },
+  { nome: 'XP', cor: '#000000', bandeira: 'Visa Infinite' },
+  { nome: 'BTG Pactual', cor: '#002B49', bandeira: 'Mastercard Black' },
+  { nome: 'Outro', cor: '#6B7280', bandeira: 'Outra' }
+];
+
+export const VISIBILIDADE_OPCOES = ['Geral', 'Individual'];
 
 export function downloadCSV(data, filename) {
   if (!data.length) return;

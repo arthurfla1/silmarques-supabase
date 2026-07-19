@@ -20,6 +20,7 @@ export function DashboardPage() {
   const [resumo, setResumo] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [visao, setVisao] = useState('Geral');
 
   const load = async () => {
     setLoading(true); setError('');
@@ -33,7 +34,31 @@ export function DashboardPage() {
   if (error) return <ErrorBanner message={error} onRetry={load}/>;
   if (!resumo) return null;
 
-  const { health_pct, financeiro, tarefas_concluidas_hoje, contas_vencidas, contas_proximas,
+  const contasParaMostrar = (resumo.todas_contas || []).filter(c => {
+    if (visao === 'Geral') {
+      return c.visibilidade !== 'Individual';
+    } else {
+      return c.visibilidade === 'Individual' && (c.responsavel === profile?.nome || !c.responsavel);
+    }
+  });
+
+  const today = new Date().toISOString().slice(0, 10);
+  const daysDiff = (d) => {
+    if (!d) return null;
+    return Math.round((new Date(d + 'T00:00:00') - new Date(today + 'T00:00:00')) / 86400000);
+  };
+
+  const contasPendentes = contasParaMostrar.filter(c => c.status !== 'paga');
+  const contas_vencidas = contasPendentes.filter(c => daysDiff(c.vencimento) < 0).map(c => ({ ...c, dias: daysDiff(c.vencimento) }));
+  const contas_proximas = contasPendentes.filter(c => { const d = daysDiff(c.vencimento); return d !== null && d >= 0 && d <= 7; }).map(c => ({ ...c, dias: daysDiff(c.vencimento) })).sort((a, b) => a.dias - b.dias);
+  
+  const financeiro = {
+    gastos_mes: contasParaMostrar.reduce((s, c) => { const d = new Date(c.vencimento); const n = new Date(); return d.getMonth() === n.getMonth() && d.getFullYear() === n.getFullYear() ? s + Number(c.valor) : s; }, 0),
+    gastos_pagos: contasParaMostrar.filter(c => c.status === 'paga').reduce((s, c) => s + Number(c.valor), 0),
+    gastos_pendentes: contasPendentes.reduce((s, c) => s + Number(c.valor), 0)
+  };
+
+  const { health_pct, tarefas_concluidas_hoje,
     itens_falta, itens_vencendo, itens_vencidos, tarefas_pendentes, tarefas_urgentes,
     manutencoes_proximas, garantias_proximas, documentos_vencendo, lista_compras_pendentes } = resumo;
 
@@ -55,9 +80,15 @@ export function DashboardPage() {
         title={`Olá, ${profile?.nome?.split(' ')[0] || 'família'} 👋`} 
         subtitle={`Hoje é ${new Date().toLocaleDateString('pt-BR')} — aqui está o resumo da casa.`}
         action={
-          <div style={{ background:'var(--sm-surface)', border:'1px solid var(--sm-border)', borderRadius:12, padding:'8px 16px', display:'flex', alignItems:'center', gap:8, fontWeight:600, fontSize:13.5, color:'var(--sm-text)' }}>
-            <span style={{ color:'var(--sm-text-soft)' }}>Residência:</span>
-            <span style={{ color:'var(--sm-red)', fontWeight:700 }}>{profile?.household_nome || 'Família SilMarques'}</span>
+          <div style={{ display: 'flex', gap: 12 }}>
+            <div style={{ background:'var(--sm-surface)', border:'1px solid var(--sm-border)', borderRadius:12, padding:'4px', display:'flex', alignItems:'center' }}>
+              <button onClick={() => setVisao('Geral')} style={{ padding: '6px 14px', borderRadius: 8, border: 'none', background: visao === 'Geral' ? 'var(--sm-red)' : 'transparent', color: visao === 'Geral' ? '#fff' : 'var(--sm-text-soft)', fontWeight: 600, fontSize: 13, cursor: 'pointer', transition: 'all 0.2s' }}>Visão Geral</button>
+              <button onClick={() => setVisao('Individual')} style={{ padding: '6px 14px', borderRadius: 8, border: 'none', background: visao === 'Individual' ? 'var(--sm-red)' : 'transparent', color: visao === 'Individual' ? '#fff' : 'var(--sm-text-soft)', fontWeight: 600, fontSize: 13, cursor: 'pointer', transition: 'all 0.2s' }}>Minhas Contas</button>
+            </div>
+            <div style={{ background:'var(--sm-surface)', border:'1px solid var(--sm-border)', borderRadius:12, padding:'8px 16px', display:'flex', alignItems:'center', gap:8, fontWeight:600, fontSize:13.5, color:'var(--sm-text)' }}>
+              <span style={{ color:'var(--sm-text-soft)' }}>Residência:</span>
+              <span style={{ color:'var(--sm-red)', fontWeight:700 }}>{profile?.household_nome || 'Família SilMarques'}</span>
+            </div>
           </div>
         }
       />
