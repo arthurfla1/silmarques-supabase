@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2, TrendingUp, RefreshCw, Target, DollarSign, Wallet } from 'lucide-react';
-import { Card, SectionHeader, Btn, Input, Select, Field, Modal, EmptyState, ProgressBar, ErrorBanner } from '../components/ui';
+import { Card, SectionHeader, Btn, Input, Select, SelectWithCustom, Field, Modal, EmptyState, ProgressBar, ErrorBanner } from '../components/ui';
 import { fmtMoney, fmtDate } from '../lib/constants';
 
 const INVESTIMENTO_TIPOS = ['Ação', 'FII', 'CDB / Renda Fixa', 'Criptomoeda', 'Fundo de Investimento', 'Stocks (Exterior)', 'ETF', 'Outros'];
@@ -50,9 +50,7 @@ function InvestimentoForm({ item, saving, onSave, onClose }) {
       {!form.is_caixinha && (
         <div className="grid-2">
           <Field label="Tipo">
-            <Select value={form.tipo} onChange={e => set('tipo', e.target.value)}>
-              {INVESTIMENTO_TIPOS.map(t => <option key={t} value={t}>{t}</option>)}
-            </Select>
+            <SelectWithCustom options={INVESTIMENTO_TIPOS} value={form.tipo} onChange={val => set('tipo', val)} />
           </Field>
           <Field label="Corretora / Banco">
             <Input value={form.corretora} onChange={e => set('corretora', e.target.value)} placeholder="Ex: XP, Nubank, Binance" />

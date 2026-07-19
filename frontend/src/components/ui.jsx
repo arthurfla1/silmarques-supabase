@@ -49,7 +49,7 @@ export function TextArea(p) { return <textarea {...p} style={{ ...iS, resize:'ve
 export function SelectWithCustom({ options, value, onChange, placeholder = "Digite a categoria..." }) {
   const [isCustom, setIsCustom] = React.useState(false);
   
-  const hasOutros = options.some(o => typeof o === 'string' && o.toLowerCase().includes('outros'));
+  const hasOutros = options.some(o => typeof o === 'string' && o.toLowerCase().includes('outr'));
   const safeOptions = hasOutros ? options : [...options, 'Outros'];
   
   const isValueCustom = value && !safeOptions.includes(value);
@@ -57,14 +57,14 @@ export function SelectWithCustom({ options, value, onChange, placeholder = "Digi
   React.useEffect(() => {
     if (isValueCustom) {
       setIsCustom(true);
-    } else if (value && safeOptions.includes(value) && !value.toLowerCase().includes('outros')) {
+    } else if (value && safeOptions.includes(value) && !value.toLowerCase().includes('outr')) {
       setIsCustom(false);
     }
   }, [value, isValueCustom, safeOptions]);
 
   const handleSelect = (e) => {
     const val = e.target.value;
-    if (val.toLowerCase().includes('outros')) {
+    if (val.toLowerCase().includes('outr')) {
       setIsCustom(true);
       onChange(''); // clear it so user types
     } else {
@@ -75,7 +75,7 @@ export function SelectWithCustom({ options, value, onChange, placeholder = "Digi
 
   const getSelectValue = () => {
     if (isCustom) {
-      const optionOutros = safeOptions.find(o => o.toLowerCase().includes('outros'));
+      const optionOutros = safeOptions.find(o => o.toLowerCase().includes('outr'));
       return optionOutros || 'Outros';
     }
     return value || '';
