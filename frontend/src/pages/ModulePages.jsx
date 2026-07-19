@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Edit2, Trash2, Search, CheckCircle2, Circle, DollarSign, Clock, AlertTriangle, Package, ShoppingCart, Apple, Check, Sparkles, Car, Wrench, Shield, FileText, Award, Users, Phone, Mail, BarChart3, Download, MapPin, Receipt, Link as LinkIcon, CreditCard, PieChart } from 'lucide-react';
+import { Plus, Edit2, Trash2, Search, CheckCircle2, Circle, DollarSign, Clock, AlertTriangle, Package, ShoppingCart, Apple, Check, Sparkles, Car, Wrench, Shield, FileText, Award, Users, Phone, Mail, BarChart3, Download, MapPin, Receipt, Link as LinkIcon, CreditCard, PieChart as PieChartIcon } from 'lucide-react';
 import { contasApi, cartoesApi, investimentosApi, estoqueApi, comprasApi, limpezaApi, veiculosApi, documentosApi, patrimonioApi, authApi, dashboardApi } from '../api/db';
 import { useApiList } from '../hooks/useApiList';
 import { useFamilia } from '../context/contexts';
@@ -148,7 +148,7 @@ export function ContasPage() {
           <CreditCard size={18} /> Meus Cartões
         </button>
         <button onClick={() => setActiveTab('investimentos')} style={{ flex: 1, padding: 12, borderRadius: 12, border: 'none', background: activeTab === 'investimentos' ? 'var(--sm-red)' : 'var(--sm-surface)', color: activeTab === 'investimentos' ? '#fff' : 'var(--sm-text-soft)', fontWeight: 600, fontSize: 14, cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-          <PieChart size={18} /> Investimentos e Caixinhas
+          <PieChartIcon size={18} /> Investimentos e Caixinhas
         </button>
       </div>
 
