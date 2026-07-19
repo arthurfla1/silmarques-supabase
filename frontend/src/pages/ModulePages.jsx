@@ -116,7 +116,11 @@ export function ContasPage() {
   const pendente = contasFiltradasPorPeriodo.filter(c=>c.status!=='paga').reduce((s,c)=>s+Number(c.valor),0);
   const vencido = contasFiltradasPorPeriodo.filter(c=>c.status!=='paga'&&daysUntil(c.vencimento)<0).reduce((s,c)=>s+Number(c.valor),0);
 
-  const porCat = CONTA_CATEGORIAS.map(cat=>({ categoria:cat, valor:contasFiltradasPorPeriodo.filter(c=>c.categoria===cat).reduce((s,c)=>s+Number(c.valor),0) })).filter(c=>c.valor>0).sort((a,b)=>b.valor-a.valor);
+  const porCatObj = {};
+  contasFiltradasPorPeriodo.forEach(c => {
+    porCatObj[c.categoria] = (porCatObj[c.categoria] || 0) + Number(c.valor);
+  });
+  const porCat = Object.keys(porCatObj).map(cat => ({ categoria: cat, valor: porCatObj[cat] })).filter(c => c.valor > 0).sort((a,b) => b.valor - a.valor);
 
   const togglePaga = async (c) => {
     const updated = await contasApi.update(c.id, { status: c.status==='paga'?'pendente':'paga' });
@@ -1085,7 +1089,7 @@ function ContaForm({ conta, cartoes, familia, saving, onSave, onClose }) {
     <form onSubmit={e => { e.preventDefault(); onSave({ ...form, valor: Number(form.valor) }); }} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <Field label="Descrição"><Input required value={form.descricao} onChange={e => set('descricao', e.target.value)} placeholder="Ex: Conta de luz" /></Field>
       <div className="grid-2">
-        <Field label="Categoria"><Select value={form.categoria} onChange={e => set('categoria', e.target.value)}>{CONTA_CATEGORIAS.map(c => <option key={c}>{c}</option>)}</Select></Field>
+        <Field label="Categoria"><Select value={form.categoria} onChange={e => set('categoria', e.target.value)}>{Array.from(new Set([form.categoria || CONTA_CATEGORIAS[0], ...CONTA_CATEGORIAS])).map(c => <option key={c}>{c}</option>)}</Select></Field>
         <Field label="Valor (R$)"><Input required type="number" step="0.01" min="0" value={form.valor} onChange={e => set('valor', e.target.value)} /></Field>
       </div>
       <div className="grid-2">

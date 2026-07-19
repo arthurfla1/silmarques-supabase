@@ -350,9 +350,10 @@ export const dashboardApi = {
       contas_pendentes: (contas || []).filter(c => c.status !== 'paga').length,
       tarefas_concluidas: (limpeza || []).filter(t => t.status === 'concluida').length,
       tarefas_pendentes: (limpeza || []).filter(t => t.status === 'pendente').length,
-      gastos_por_categoria_contas: CONTA_CATS.map(name => ({
-        name, valor: (contas || []).filter(c => c.categoria === name).reduce((s, c) => s + Number(c.valor), 0)
-      })).filter(c => c.valor > 0).sort((a, b) => b.valor - a.valor),
+      gastos_por_categoria_contas: Object.entries((contas || []).reduce((acc, c) => {
+        acc[c.categoria] = (acc[c.categoria] || 0) + Number(c.valor);
+        return acc;
+      }, {})).map(([name, valor]) => ({ name, valor })).filter(c => c.valor > 0).sort((a, b) => b.valor - a.valor),
       valor_patrimonio_por_categoria: BEM_CATS.map(name => ({
         name, valor: (patrimonio || []).filter(b => b.categoria === name).reduce((s, b) => s + Number(b.valor), 0)
       })).filter(c => c.valor > 0),
