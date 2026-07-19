@@ -71,6 +71,7 @@ export function DashboardPage() {
   const itens_falta = isGeral ? resumo.itens_falta || [] : [];
   const itens_vencendo = isGeral ? resumo.itens_vencendo || [] : [];
   const itens_vencidos = isGeral ? resumo.itens_vencidos || [] : [];
+  const lista_compras_pendentes = isGeral ? resumo.lista_compras_pendentes || [] : [];
   const manutencoes_proximas = isGeral ? resumo.manutencoes_proximas || [] : [];
   const garantias_proximas = isGeral ? resumo.garantias_proximas || [] : [];
   
