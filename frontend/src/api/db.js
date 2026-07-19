@@ -158,10 +158,16 @@ function makeTableApi(table, orderBy = 'created_at') {
     async update(id, payload) {
       const clean = { ...payload };
       delete clean.id;
-      delete clean.user_id;
       delete clean.household_id;
       delete clean.created_at;
       delete clean.manutencoes;
+      
+      if (clean.visibilidade === 'Individual') {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) clean.user_id = user.id;
+      } else {
+        delete clean.user_id;
+      }
       
       return check(
         await supabase.from(table).update(clean).eq('id', id).select().single()

@@ -314,6 +314,7 @@ export function ContasPage() {
           cartoes={cartoes.filter(c => visao === 'Geral' ? c.visibilidade === 'Geral' || !c.visibilidade : c.visibilidade === 'Individual')} 
           contas={contas} 
           saving={savingCartao} 
+          actionError={actionErrorCartao}
           save={saveCartao} 
           remove={removeCartao} 
           onPagarFatura={async (cartaoId) => {
@@ -960,12 +961,13 @@ function ImportExtratoForm({ familia, cartoes, contasExistentes, onImport, onClo
   );
 }
 
-function CartaoForm({ cartao, saving, onSave, onClose }) {
+function CartaoForm({ cartao, saving, actionError, onSave, onClose }) {
   const [form, setForm] = useState(cartao ? { ...cartao } : { nome: '', banco: CARTOES_BANCOS[0].nome, limite: '', dia_vencimento: 10, dia_fechamento: 1, visibilidade: 'Geral' });
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   
   return (
     <form onSubmit={e => { e.preventDefault(); onSave({ ...form, limite: Number(form.limite) }); }} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      {actionError && <ErrorBanner error={actionError} />}
       <Field label="Nome ou Apelido do Cartão"><Input required value={form.nome} onChange={e => set('nome', e.target.value)} placeholder="Ex: Nubank Principal" /></Field>
       <div className="grid-2">
         <Field label="Banco Emissor">
@@ -988,7 +990,7 @@ function CartaoForm({ cartao, saving, onSave, onClose }) {
   );
 }
 
-function CartoesView({ cartoes, contas, saving, save, remove, onPagarFatura }) {
+function CartoesView({ cartoes, contas, saving, actionError, save, remove, onPagarFatura }) {
   const [modal, setModal] = useState(null);
 
   const handleSave = async (payload) => {
@@ -1066,7 +1068,7 @@ function CartoesView({ cartoes, contas, saving, save, remove, onPagarFatura }) {
       
       {modal !== null && (
         <Modal title={modal.id ? 'Editar Cartão' : 'Novo Cartão'} onClose={() => setModal(null)}>
-          <CartaoForm cartao={modal.id ? modal : null} saving={saving} onSave={handleSave} onClose={() => setModal(null)} />
+          <CartaoForm cartao={modal.id ? modal : null} saving={saving} actionError={actionError} onSave={handleSave} onClose={() => setModal(null)} />
         </Modal>
       )}
     </div>
