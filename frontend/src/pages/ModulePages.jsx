@@ -342,7 +342,6 @@ export function ContasPage() {
         <Modal title="Importar Extrato Bancário" onClose={() => setImportModalOpen(false)} width={780}>
           <ImportExtratoForm
             familia={familia}
-            cartoes={cartoes}
             contasExistentes={contas}
             cartoes={cartoes}
             onImport={async (contasParaImportar) => {
