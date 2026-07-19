@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { Plus, Edit2, Trash2, Search, CheckCircle2, Circle, DollarSign, Clock, AlertTriangle, Package, ShoppingCart, Apple, Check, Sparkles, Car, Wrench, Shield, FileText, Award, Users, Phone, Mail, BarChart3, Download, MapPin, Receipt, Link as LinkIcon, CreditCard } from 'lucide-react';
-import { contasApi, cartoesApi, estoqueApi, comprasApi, limpezaApi, veiculosApi, documentosApi, patrimonioApi, authApi, dashboardApi } from '../api/db';
+import { Plus, Edit2, Trash2, Search, CheckCircle2, Circle, DollarSign, Clock, AlertTriangle, Package, ShoppingCart, Apple, Check, Sparkles, Car, Wrench, Shield, FileText, Award, Users, Phone, Mail, BarChart3, Download, MapPin, Receipt, Link as LinkIcon, CreditCard, PieChart } from 'lucide-react';
+import { contasApi, cartoesApi, investimentosApi, estoqueApi, comprasApi, limpezaApi, veiculosApi, documentosApi, patrimonioApi, authApi, dashboardApi } from '../api/db';
 import { useApiList } from '../hooks/useApiList';
 import { useFamilia } from '../context/contexts';
 import { useAuth } from '../context/AuthContext';
+import { InvestimentosView } from './InvestimentosView';
 
 import { Card, SectionHeader, Btn, Input, Select, Field, Modal, TextArea, Badge, IconBtn, EmptyState, Metric, ProgressBar, Avatar, LoadingScreen, ErrorBanner, FileUploader } from '../components/ui';
 import { CONTA_CATEGORIAS, ESTOQUE_CATEGORIAS, ESTOQUE_LOCAIS, LIMPEZA_AMBIENTES, LIMPEZA_FREQ, LIMPEZA_PRIORIDADES, VEICULO_CATEGORIAS, DOC_CATEGORIAS, BEM_CATEGORIAS, COMPRA_UNIDADES, MERCADO_CATEGORIAS, PERMISSOES, FEIRA_ITENS, CAR_BRANDS, CARTOES_BANCOS, VISIBILIDADE_OPCOES, fmtMoney, fmtDate, todayStr, addDays, daysUntil, downloadCSV } from '../lib/constants';
@@ -61,9 +62,10 @@ export function ContasPage() {
   const [activeTab, setActiveTab] = useState('contas');
   const [visao, setVisao] = useState('Geral');
   const { data:cartoes, setData:setCartoes, loading:loadingCartoes, error:errorCartoes, reload:reloadCartoes, saving:savingCartao, actionError:actionErrorCartao, save:saveCartao, remove:removeCartao } = useCRUD(cartoesApi);
+  const { data:investimentos, setData:setInvestimentos, loading:loadingInv, error:errorInv, reload:reloadInv, saving:savingInv, actionError:actionErrorInv, save:saveInv, remove:removeInv } = useCRUD(investimentosApi);
 
-  if (loading || loadingCartoes) return <LoadingScreen label="Carregando dados..."/>;
-  if (error) return <ErrorBanner message={error} onRetry={reload}/>;
+  if (loading || loadingCartoes || loadingInv) return <LoadingScreen label="Carregando dados..."/>;
+  if (error || errorInv) return <ErrorBanner message={error || errorInv} onRetry={reload}/>;
 
   const getPeriodRange = () => {
     const now = new Date();
@@ -144,6 +146,9 @@ export function ContasPage() {
         </button>
         <button onClick={() => setActiveTab('cartoes')} style={{ flex: 1, padding: 12, borderRadius: 12, border: 'none', background: activeTab === 'cartoes' ? 'var(--sm-red)' : 'var(--sm-surface)', color: activeTab === 'cartoes' ? '#fff' : 'var(--sm-text-soft)', fontWeight: 600, fontSize: 14, cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
           <CreditCard size={18} /> Meus Cartões
+        </button>
+        <button onClick={() => setActiveTab('investimentos')} style={{ flex: 1, padding: 12, borderRadius: 12, border: 'none', background: activeTab === 'investimentos' ? 'var(--sm-red)' : 'var(--sm-surface)', color: activeTab === 'investimentos' ? '#fff' : 'var(--sm-text-soft)', fontWeight: 600, fontSize: 14, cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+          <PieChart size={18} /> Investimentos e Caixinhas
         </button>
       </div>
 
@@ -296,6 +301,16 @@ export function ContasPage() {
             }
             reload();
           }}
+        />
+      )}
+
+      {activeTab === 'investimentos' && (
+        <InvestimentosView
+          investimentos={investimentos.filter(i => visao === 'Geral' ? i.visibilidade === 'Geral' : i.visibilidade === 'Individual')}
+          saving={savingInv}
+          save={saveInv}
+          remove={removeInv}
+          reload={reloadInv}
         />
       )}
 

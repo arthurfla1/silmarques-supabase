@@ -232,6 +232,7 @@ export const veiculosApi = {
 
 export const documentosApi = makeTableApi('documentos', 'created_at');
 export const patrimonioApi = makeTableApi('patrimonio', 'created_at');
+export const investimentosApi = makeTableApi('investimentos', 'created_at');
 
 // ── DASHBOARD ────────────────────────────────────────────────
 export const dashboardApi = {
