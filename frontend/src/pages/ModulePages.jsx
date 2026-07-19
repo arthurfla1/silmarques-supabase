@@ -159,8 +159,10 @@ export function ContasPage() {
       {activeTab === 'dashboard' && (
         <DashboardContasView 
           contas={contas.filter(c => visao === 'Geral' ? c.visibilidade === 'Geral' : c.visibilidade === 'Individual')} 
+          allContas={contas}
           cartoes={cartoes} 
           investimentos={investimentos.filter(i => visao === 'Geral' ? i.visibilidade === 'Geral' : i.visibilidade === 'Individual')} 
+          allInvestimentos={investimentos}
         />
       )}
 

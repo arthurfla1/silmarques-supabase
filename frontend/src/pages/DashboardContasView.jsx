@@ -6,7 +6,7 @@ import { TrendingUp, TrendingDown, CreditCard, DollarSign, PieChart as PieChartI
 
 const COLORS = ['#D32F2F','#1565C0','#2E7D32','#B8740A','#6A4C93','#00897B', '#E64A19', '#FBC02D', '#8E24AA', '#0097A7'];
 
-export function DashboardContasView({ contas, cartoes, investimentos }) {
+export function DashboardContasView({ contas, allContas, cartoes, investimentos, allInvestimentos }) {
   const [periodo, setPeriodo] = useState('mes_atual');
 
   // Helpers de Data
@@ -78,11 +78,11 @@ export function DashboardContasView({ contas, cartoes, investimentos }) {
 
   // Cartões e Limites
   const limiteTotal = cartoes.reduce((acc, c) => acc + Number(c.limite || 0), 0);
-  const limiteUsado = contas.filter(c => c.cartao_id && c.status === 'pendente').reduce((acc, c) => acc + Number(c.valor), 0);
+  const limiteUsado = (allContas || contas).filter(c => c.cartao_id && c.status !== 'paga').reduce((acc, c) => acc + Number(c.valor), 0);
   const limiteDisponivel = limiteTotal - limiteUsado;
 
   const barChartCartoes = cartoes.map(cartao => {
-    const gastoCartao = contas.filter(c => c.cartao_id === cartao.id && c.status === 'pendente').reduce((acc, c) => acc + Number(c.valor), 0);
+    const gastoCartao = (allContas || contas).filter(c => c.cartao_id === cartao.id && c.status !== 'paga').reduce((acc, c) => acc + Number(c.valor), 0);
     return {
       name: cartao.nome,
       Limite: Number(cartao.limite || 0),
