@@ -21,6 +21,7 @@ export function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [visao, setVisao] = useState('Geral');
+  const [periodo, setPeriodo] = useState('mes_atual');
 
   const load = async () => {
     setLoading(true); setError('');
@@ -52,6 +53,24 @@ export function DashboardPage() {
   });
 
   const today = new Date().toISOString().slice(0, 10);
+  const now = new Date();
+  
+  let pStart, pEnd;
+  if (periodo === 'mes_atual') {
+    pStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    pEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  } else if (periodo === 'mes_anterior') {
+    pStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    pEnd = new Date(now.getFullYear(), now.getMonth(), 0);
+  } else if (periodo === 'trimestre_atual') {
+    const quarterStartMonth = Math.floor(now.getMonth() / 3) * 3;
+    pStart = new Date(now.getFullYear(), quarterStartMonth, 1);
+    pEnd = new Date(now.getFullYear(), quarterStartMonth + 3, 0);
+  } else if (periodo === 'ano_atual') {
+    pStart = new Date(now.getFullYear(), 0, 1);
+    pEnd = new Date(now.getFullYear(), 11, 31);
+  }
+
   const daysDiff = (d) => {
     if (!d) return null;
     return Math.round((new Date(d + 'T00:00:00') - new Date(today + 'T00:00:00')) / 86400000);
@@ -61,10 +80,15 @@ export function DashboardPage() {
   const contas_vencidas = contasPendentes.filter(c => daysDiff(c.vencimento) < 0).map(c => ({ ...c, dias: daysDiff(c.vencimento) }));
   const contas_proximas = contasPendentes.filter(c => { const d = daysDiff(c.vencimento); return d !== null && d >= 0 && d <= 7; }).map(c => ({ ...c, dias: daysDiff(c.vencimento) })).sort((a, b) => a.dias - b.dias);
   
+  const contasNoPeriodo = contasParaMostrar.filter(c => {
+    const d = new Date(c.vencimento + 'T00:00:00');
+    return d >= pStart && d <= pEnd;
+  });
+
   const financeiro = {
-    gastos_mes: contasParaMostrar.reduce((s, c) => { const d = new Date(c.vencimento); const n = new Date(); return d.getMonth() === n.getMonth() && d.getFullYear() === n.getFullYear() ? s + Number(c.valor) : s; }, 0),
-    gastos_pagos: contasParaMostrar.filter(c => c.status === 'paga').reduce((s, c) => s + Number(c.valor), 0),
-    gastos_pendentes: contasPendentes.reduce((s, c) => s + Number(c.valor), 0)
+    gastos_mes: contasNoPeriodo.reduce((s, c) => s + Number(c.valor), 0),
+    gastos_pagos: contasNoPeriodo.filter(c => c.status === 'paga').reduce((s, c) => s + Number(c.valor), 0),
+    gastos_pendentes: contasNoPeriodo.filter(c => c.status !== 'paga').reduce((s, c) => s + Number(c.valor), 0)
   };
 
   // Only show these in Geral view since they don't belong to individuals
@@ -101,6 +125,7 @@ export function DashboardPage() {
   const toneColor = { red:'var(--sm-red)', amber:'var(--sm-amber)', blue:'var(--sm-blue)' };
   const alertas = [
     ...contas_vencidas.map(c=>({ tone:'red', icon:Receipt, text:`Conta "${c.descricao}" venceu há ${Math.abs(c.dias)} dia(s)`, route:'/contas' })),
+    ...contas_proximas.map(c=>({ tone:'amber', icon:Receipt, text:`Conta "${c.descricao}" vence em ${c.dias} dia(s)`, route:'/contas' })),
     ...itens_vencidos.map(i=>({ tone:'red', icon:Package, text:`${i.nome} está vencido no estoque`, route:'/estoque' })),
     ...itens_falta.map(i=>({ tone:'amber', icon:Package, text:`${i.nome} está em falta (mín. ${i.minimo} ${i.unidade})`, route:'/estoque' })),
     ...itens_vencendo.map(i=>({ tone:'amber', icon:Package, text:`${i.nome} vence em ${i.dias} dia(s)`, route:'/estoque' })),
@@ -132,7 +157,15 @@ export function DashboardPage() {
       <div style={{ display:'grid', gridTemplateColumns:'minmax(200px,280px) 1fr', gap:16, marginBottom:16 }} className="dash-top">
         <Card style={{ display:'flex', alignItems:'center', justifyContent:'center' }}><HealthRing pct={health_pct}/></Card>
         <Card>
-          <div style={{ fontSize:13, fontWeight:600, color:'var(--sm-text-soft)', marginBottom:12 }}>Resumo financeiro do mês</div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom:12 }}>
+            <div style={{ fontSize:13, fontWeight:600, color:'var(--sm-text-soft)' }}>Resumo financeiro</div>
+            <select value={periodo} onChange={e => setPeriodo(e.target.value)} style={{ fontSize: 12, padding: '4px 8px', borderRadius: 6, border: '1px solid var(--sm-border)', background: 'var(--sm-surface)' }}>
+              <option value="mes_atual">Mês Atual</option>
+              <option value="mes_anterior">Mês Anterior</option>
+              <option value="trimestre_atual">Trimestre Atual</option>
+              <option value="ano_atual">Ano Atual</option>
+            </select>
+          </div>
           <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(120px,1fr))', gap:12 }}>
             <Metric icon={DollarSign} label="Gastos previstos" value={fmtMoney(financeiro.gastos_mes)}/>
             <Metric icon={CheckCircle2} label="Já pago" value={fmtMoney(financeiro.gastos_pagos)} tone="green"/>
