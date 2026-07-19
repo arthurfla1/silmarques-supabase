@@ -59,6 +59,7 @@ export function ContasPage() {
   const [dataFim, setDataFim] = useState('');
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('contas');
+  const [visao, setVisao] = useState('Geral');
   const { data:cartoes, setData:setCartoes, loading:loadingCartoes, error:errorCartoes, reload:reloadCartoes, saving:savingCartao, actionError:actionErrorCartao, save:saveCartao, remove:removeCartao } = useCRUD(cartoesApi);
 
   if (loading || loadingCartoes) return <LoadingScreen label="Carregando dados..."/>;
@@ -86,7 +87,14 @@ export function ContasPage() {
   };
 
   const { start, end } = getPeriodRange();
-  const contasFiltradasPorPeriodo = contas.filter(c => {
+  
+  const contasVisiveis = contas.filter(c => {
+    if (visao === 'Geral') return c.visibilidade === 'Geral';
+    if (visao === 'Individual') return c.visibilidade === 'Individual';
+    return true;
+  });
+
+  const contasFiltradasPorPeriodo = contasVisiveis.filter(c => {
     if (periodo === 'todos') return true;
     if (!c.vencimento) return true;
     const date = new Date(c.vencimento + 'T00:00:00');
@@ -142,8 +150,31 @@ export function ContasPage() {
       {activeTab === 'contas' && (
         <>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginBottom: 16, background: 'var(--sm-surface)', border: '1px solid var(--sm-border)', borderRadius: 'var(--radius-lg)', padding: 14 }}>
-        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--sm-text)' }}>Período:</span>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--sm-text)' }}>Visão:</span>
+            <div style={{ display: 'flex', gap: 8, marginRight: 16, borderRight: '1px solid var(--sm-border)', paddingRight: 16 }}>
+              {['Geral', 'Individual'].map(v => (
+                <button
+                  key={v}
+                  onClick={() => setVisao(v)}
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: 8,
+                    fontSize: 13,
+                    fontWeight: 600,
+                    border: '1px solid var(--sm-border)',
+                    background: visao === v ? 'var(--sm-red)' : 'var(--sm-bg)',
+                    color: visao === v ? '#fff' : 'var(--sm-text-soft)',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s'
+                  }}
+                >
+                  {v}
+                </button>
+              ))}
+            </div>
+            
+            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--sm-text)' }}>Período:</span>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {[
             { id: 'mes', label: '1 Mês' },
             { id: 'trimestre', label: 'Trimestral' },
