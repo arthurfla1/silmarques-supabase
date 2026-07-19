@@ -1260,15 +1260,49 @@ export function ComprasPage() {
   const { data:lista, setData:setLista, loading, error, reload } = useApiList(comprasApi.list.bind(comprasApi));
   const [tab, setTab] = useState('todos');
   const [quickAdd, setQuickAdd] = useState('');
+  const [dataPlanejada, setDataPlanejada] = useState('');
   const [modal, setModal] = useState(false);
   const [actionError, setActionError] = useState('');
 
   if (loading) return <LoadingScreen label="Carregando lista..."/>;
   if (error) return <ErrorBanner message={error} onRetry={reload}/>;
 
-  const filtered = lista.filter(c=>tab==='todos'||c.tipo===tab);
+  const unarchived = lista.filter(c => !c.arquivado);
+  const archived = lista.filter(c => c.arquivado);
+
+  const filtered = unarchived.filter(c=>tab==='todos'||c.tipo===tab);
   const pendentes = filtered.filter(c=>!c.comprado);
   const comprados = filtered.filter(c=>c.comprado);
+
+  const pendentesPorCat = pendentes.reduce((acc, item) => {
+    const cat = item.categoria || 'Outros';
+    if (!acc[cat]) acc[cat] = [];
+    acc[cat].push(item);
+    return acc;
+  }, {});
+
+  const historicoPorData = archived.reduce((acc, item) => {
+    const d = item.data_compra || 'Sem data';
+    if (!acc[d]) acc[d] = [];
+    acc[d].push(item);
+    return acc;
+  }, {});
+
+  const archiveComprados = async () => {
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      await Promise.all(comprados.map(c => comprasApi.update(c.id, { arquivado: true, data_compra: today })));
+      reload();
+    } catch(e) { setActionError(e.message); }
+  };
+
+  const savePlanejada = async () => {
+    if (!dataPlanejada) return;
+    try {
+      await Promise.all(pendentes.map(c => comprasApi.update(c.id, { data_planejada: dataPlanejada })));
+      alert('Data planejada salva!');
+    } catch(e) { setActionError(e.message); }
+  };
 
   const toggle = async (item) => {
     try { const u=await comprasApi.update(item.id,{comprado:!item.comprado}); setLista(lista.map(c=>c.id===item.id?u:c)); } catch(e){setActionError(e.message);}
@@ -1287,24 +1321,58 @@ export function ComprasPage() {
       <SectionHeader title="Lista de compras" subtitle="Feira e supermercado em uma só lista." action={<Btn icon={Plus} onClick={()=>setModal(true)}>Item personalizado</Btn>}/>
       {actionError && <ErrorBanner message={actionError}/>}
       <div style={{ display:'flex', gap:8, marginBottom:14 }}>
-        {[{k:'todos',l:'Todos',I:ShoppingCart},{k:'feira',l:'Feira',I:Apple},{k:'mercado',l:'Mercado',I:Package}].map(t=>(
+        {[{k:'todos',l:'Todos',I:ShoppingCart},{k:'feira',l:'Feira',I:Apple},{k:'mercado',l:'Mercado',I:Package},{k:'historico',l:'Histórico',I:Clock}].map(t=>(
           <button key={t.k} onClick={()=>setTab(t.k)} style={{ padding:'8px 16px', borderRadius:999, fontSize:13, fontWeight:600, border:'1px solid var(--sm-border)', background:tab===t.k?'var(--sm-red)':'transparent', color:tab===t.k?'#fff':'var(--sm-text-soft)', display:'flex', alignItems:'center', gap:6, cursor:'pointer' }}><t.I size={14}/> {t.l}</button>
         ))}
       </div>
-      <form onSubmit={handleQuick} style={{ display:'flex', gap:8, marginBottom:16 }}>
-        <Input placeholder="Adicionar item rápido..." value={quickAdd} onChange={e=>setQuickAdd(e.target.value)}/>
-        <Btn type="submit" icon={Plus}>Adicionar</Btn>
-      </form>
-      <Card style={{ marginBottom:16 }}>
-        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
-          <div style={{ fontWeight:600, fontSize:15 }}>Pendentes ({pendentes.length})</div>
-          {comprados.length>0 && <button onClick={clearComprados} style={{ background:'transparent', border:'none', color:'var(--sm-text-soft)', fontSize:12.5, fontWeight:600, cursor:'pointer' }}>Limpar comprados</button>}
+      
+      {tab === 'historico' ? (
+        <Card>
+          <div style={{ fontWeight:600, fontSize:15, marginBottom:12 }}>Histórico de Compras</div>
+          {Object.keys(historicoPorData).length === 0 ? <EmptyState icon={Clock} title="Sem histórico" subtitle="Suas compras arquivadas aparecerão aqui."/> : (
+            Object.entries(historicoPorData).sort((a,b)=>b[0].localeCompare(a[0])).map(([data, itens]) => (
+              <div key={data} style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--sm-text-soft)', marginBottom: 8, paddingBottom: 4, borderBottom: '1px solid var(--sm-border)' }}>
+                  {data === 'Sem data' ? data : new Date(data + 'T00:00:00').toLocaleDateString('pt-BR')}
+                </div>
+                <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+                  {itens.map(c => <CompraItem key={c.id} item={c} onToggle={()=>{}} onRemove={remove} hideToggle/>)}
+                </div>
+              </div>
+            ))
+          )}
+        </Card>
+      ) : (
+        <>
+          <form onSubmit={handleQuick} style={{ display:'flex', gap:8, marginBottom:16 }}>
+            <Input placeholder="Adicionar item rápido..." value={quickAdd} onChange={e=>setQuickAdd(e.target.value)}/>
+            <Btn type="submit" icon={Plus}>Adicionar</Btn>
+          </form>
+
+          <Card style={{ marginBottom:16 }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12, flexWrap:'wrap', gap:10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ fontWeight:600, fontSize:15 }}>Pendentes ({pendentes.length})</div>
+                <button onClick={() => window.print()} style={{ background:'var(--sm-bg)', border:'1px solid var(--sm-border)', borderRadius: 6, padding: '4px 8px', fontSize: 12, cursor: 'pointer', display: 'flex', gap: 4, alignItems: 'center' }}><FileText size={14}/> Imprimir / PDF</button>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 12, color: 'var(--sm-text-soft)', fontWeight: 600 }}>Data p/ ir:</span>
+                <Input type="date" value={dataPlanejada} onChange={e=>setDataPlanejada(e.target.value)} style={{ width: 130, padding: '4px 8px', fontSize: 12 }} />
+                <button onClick={savePlanejada} style={{ background:'var(--sm-red)', color: '#fff', border:'none', borderRadius: 6, padding: '4px 8px', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>Definir</button>
+              </div>
+            </div>
         </div>
         {pendentes.length===0 ? <EmptyState icon={ShoppingCart} title="Lista vazia" subtitle="Tudo comprado!"/> : <div style={{ display:'flex', flexDirection:'column', gap:6 }}>{pendentes.map(c=><CompraItem key={c.id} item={c} onToggle={toggle} onRemove={remove}/>)}</div>}
       </Card>
       {comprados.length>0 && (
-        <Card style={{ marginBottom:16, opacity:0.75 }}>
-          <div style={{ fontWeight:600, fontSize:15, marginBottom:12 }}>Comprados ({comprados.length})</div>
+        <Card style={{ marginBottom:16, border: '1px solid var(--sm-border)' }}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
+            <div style={{ fontWeight:600, fontSize:15 }}>Comprados ({comprados.length})</div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={clearComprados} style={{ background:'transparent', border:'none', color:'var(--sm-text-soft)', fontSize:12.5, fontWeight:600, cursor:'pointer' }}>Excluir</button>
+              <button onClick={archiveComprados} style={{ background:'var(--sm-green)', color: '#fff', border:'none', borderRadius: 6, padding: '4px 12px', fontSize:12.5, fontWeight:600, cursor:'pointer' }}>Arquivar Histórico</button>
+            </div>
+          </div>
           <div style={{ display:'flex', flexDirection:'column', gap:6 }}>{comprados.map(c=><CompraItem key={c.id} item={c} onToggle={toggle} onRemove={remove}/>)}</div>
         </Card>
       )}
@@ -1327,17 +1395,49 @@ export function ComprasPage() {
           <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>{MERCADO_CATEGORIAS.map(cat=><button key={cat} onClick={()=>addItem(cat,cat,'mercado')} style={{ padding:'8px 14px', borderRadius:999, fontSize:12.5, border:'1px solid var(--sm-border)', background:'var(--sm-bg)', color:'var(--sm-text)', cursor:'pointer' }}>+ {cat}</button>)}</div>
         </Card>
       )}
+      )}
+        </>
+      )}
+
+      {/* Print Layout */}
+      <div className="print-only">
+        <h2 style={{ borderBottom: '2px solid #000', paddingBottom: 8, marginBottom: 20 }}>
+          Lista de Compras {dataPlanejada ? `- Planejada para: ${new Date(dataPlanejada + 'T00:00:00').toLocaleDateString('pt-BR')}` : ''}
+        </h2>
+        
+        {Object.keys(pendentesPorCat).length === 0 ? <p>Lista vazia.</p> : (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+            {Object.entries(pendentesPorCat).map(([cat, items]) => (
+              <div key={cat} style={{ breakInside: 'avoid', marginBottom: 16 }}>
+                <h3 style={{ fontSize: 16, backgroundColor: '#f0f0f0', padding: '4px 8px', marginBottom: 10, borderRadius: 4 }}>{cat}</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {items.map(item => (
+                    <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{ width: 18, height: 18, border: '2px solid #333', borderRadius: 3 }}></div>
+                      <span style={{ fontSize: 14 }}>{item.produto}</span>
+                      <span style={{ fontSize: 12, color: '#666' }}>({item.quantidade} {item.unidade})</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       {modal && <Modal title="Novo item" onClose={()=>setModal(false)}><CompraForm onSave={saveNew} onClose={()=>setModal(false)}/></Modal>}
     </div>
   );
 }
 
-function CompraItem({ item, onToggle, onRemove }) {
+function CompraItem({ item, onToggle, onRemove, hideToggle }) {
   return (
     <div style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 4px', borderBottom:'1px solid var(--sm-border)' }}>
-      <button onClick={()=>onToggle(item)} style={{ background:'transparent', border:'none', color:item.comprado?'var(--sm-green)':'var(--sm-text-faint)', display:'flex', cursor:'pointer' }}>
-        {item.comprado?<CheckCircle2 size={22}/>:<Circle size={22}/>}
-      </button>
+      {!hideToggle && (
+        <button onClick={()=>onToggle(item)} style={{ background:'transparent', border:'none', color:item.comprado?'var(--sm-green)':'var(--sm-text-faint)', display:'flex', cursor:'pointer' }}>
+          {item.comprado?<CheckCircle2 size={22}/>:<Circle size={22}/>}
+        </button>
+      )}
       <div style={{ flex:1, minWidth:0 }}>
         <div style={{ fontSize:14, fontWeight:500, textDecoration:item.comprado?'line-through':'none', color:item.comprado?'var(--sm-text-faint)':'var(--sm-text)' }}>{item.produto}</div>
         {item.observacoes&&<div style={{ fontSize:12, color:'var(--sm-text-soft)' }}>{item.observacoes}</div>}
