@@ -5,6 +5,7 @@ import { useApiList } from '../hooks/useApiList';
 import { useFamilia } from '../context/contexts';
 import { useAuth } from '../context/AuthContext';
 import { InvestimentosView } from './InvestimentosView';
+import { DashboardContasView } from './DashboardContasView';
 
 import { Card, SectionHeader, Btn, Input, Select, Field, Modal, TextArea, Badge, IconBtn, EmptyState, Metric, ProgressBar, Avatar, LoadingScreen, ErrorBanner, FileUploader } from '../components/ui';
 import { CONTA_CATEGORIAS, ESTOQUE_CATEGORIAS, ESTOQUE_LOCAIS, LIMPEZA_AMBIENTES, LIMPEZA_FREQ, LIMPEZA_PRIORIDADES, VEICULO_CATEGORIAS, DOC_CATEGORIAS, BEM_CATEGORIAS, COMPRA_UNIDADES, MERCADO_CATEGORIAS, PERMISSOES, FEIRA_ITENS, CAR_BRANDS, CARTOES_BANCOS, VISIBILIDADE_OPCOES, fmtMoney, fmtDate, todayStr, addDays, daysUntil, downloadCSV } from '../lib/constants';
@@ -59,7 +60,7 @@ export function ContasPage() {
   const [dataInicio, setDataInicio] = useState('');
   const [dataFim, setDataFim] = useState('');
   const [importModalOpen, setImportModalOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState('contas');
+  const [activeTab, setActiveTab] = useState('dashboard');
   const [visao, setVisao] = useState('Geral');
   const { data:cartoes, setData:setCartoes, loading:loadingCartoes, error:errorCartoes, reload:reloadCartoes, saving:savingCartao, actionError:actionErrorCartao, save:saveCartao, remove:removeCartao } = useCRUD(cartoesApi);
   const { data:investimentos, setData:setInvestimentos, loading:loadingInv, error:errorInv, reload:reloadInv, saving:savingInv, actionError:actionErrorInv, save:saveInv, remove:removeInv } = useCRUD(investimentosApi);
@@ -141,6 +142,9 @@ export function ContasPage() {
       {actionError && <ErrorBanner message={actionError}/>}
       
       <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
+        <button onClick={() => setActiveTab('dashboard')} style={{ flex: 1, padding: 12, borderRadius: 12, border: 'none', background: activeTab === 'dashboard' ? 'var(--sm-red)' : 'var(--sm-surface)', color: activeTab === 'dashboard' ? '#fff' : 'var(--sm-text-soft)', fontWeight: 600, fontSize: 14, cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+          <BarChart3 size={18} /> Dashboard
+        </button>
         <button onClick={() => setActiveTab('contas')} style={{ flex: 1, padding: 12, borderRadius: 12, border: 'none', background: activeTab === 'contas' ? 'var(--sm-red)' : 'var(--sm-surface)', color: activeTab === 'contas' ? '#fff' : 'var(--sm-text-soft)', fontWeight: 600, fontSize: 14, cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
           <Receipt size={18} /> Histórico de Contas
         </button>
@@ -151,6 +155,14 @@ export function ContasPage() {
           <PieChartIcon size={18} /> Investimentos e Caixinhas
         </button>
       </div>
+
+      {activeTab === 'dashboard' && (
+        <DashboardContasView 
+          contas={contas.filter(c => visao === 'Geral' ? c.visibilidade === 'Geral' : c.visibilidade === 'Individual')} 
+          cartoes={cartoes} 
+          investimentos={investimentos.filter(i => visao === 'Geral' ? i.visibilidade === 'Geral' : i.visibilidade === 'Individual')} 
+        />
+      )}
 
       {activeTab === 'contas' && (
         <>
