@@ -156,8 +156,15 @@ function makeTableApi(table, orderBy = 'created_at') {
       );
     },
     async update(id, payload) {
+      const clean = { ...payload };
+      delete clean.id;
+      delete clean.user_id;
+      delete clean.household_id;
+      delete clean.created_at;
+      delete clean.manutencoes;
+      
       return check(
-        await supabase.from(table).update(payload).eq('id', id).select().single()
+        await supabase.from(table).update(clean).eq('id', id).select().single()
       );
     },
     async remove(id) {
@@ -215,7 +222,14 @@ export const veiculosApi = {
     return { ...v, manutencoes: [] };
   },
   async update(id, payload) {
-    return check(await supabase.from('veiculos').update(payload).eq('id', id).select().single());
+    const clean = { ...payload };
+    delete clean.id;
+    delete clean.user_id;
+    delete clean.household_id;
+    delete clean.created_at;
+    delete clean.manutencoes;
+
+    return check(await supabase.from('veiculos').update(clean).eq('id', id).select().single());
   },
   async remove(id) {
     check(await supabase.from('veiculos').delete().eq('id', id));
