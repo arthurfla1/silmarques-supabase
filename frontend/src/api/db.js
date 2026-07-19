@@ -305,6 +305,8 @@ export const dashboardApi = {
       financeiro: { gastos_mes: gastosMes, gastos_pagos: gastosPagos, gastos_pendentes: gastosPendentes },
       todas_contas: contas || [],
       cartoes: cartoes || [],
+      todas_tarefas: limpeza || [],
+      todos_documentos: documentos || [],
       tarefas_concluidas_hoje: tarefasConcluidasHoje,
       contas_vencidas: contasVencidas,
       contas_proximas: contasProximas,

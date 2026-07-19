@@ -34,12 +34,21 @@ export function DashboardPage() {
   if (error) return <ErrorBanner message={error} onRetry={load}/>;
   if (!resumo) return null;
 
+  const isGeral = visao === 'Geral';
+
   const contasParaMostrar = (resumo.todas_contas || []).filter(c => {
-    if (visao === 'Geral') {
-      return c.visibilidade !== 'Individual';
-    } else {
-      return c.visibilidade === 'Individual' && (c.responsavel === profile?.nome || !c.responsavel);
-    }
+    if (isGeral) return c.visibilidade !== 'Individual';
+    return c.visibilidade === 'Individual' && (c.responsavel === profile?.nome || !c.responsavel);
+  });
+
+  const tarefasParaMostrar = (resumo.todas_tarefas || []).filter(t => {
+    if (isGeral) return true; // all tasks are general for now, unless we add visibilidade
+    return t.responsavel === profile?.nome;
+  });
+
+  const docParaMostrar = (resumo.todos_documentos || []).filter(d => {
+    if (isGeral) return true;
+    return d.responsavel === profile?.nome;
   });
 
   const today = new Date().toISOString().slice(0, 10);
@@ -58,9 +67,35 @@ export function DashboardPage() {
     gastos_pendentes: contasPendentes.reduce((s, c) => s + Number(c.valor), 0)
   };
 
-  const { health_pct, tarefas_concluidas_hoje,
-    itens_falta, itens_vencendo, itens_vencidos, tarefas_pendentes, tarefas_urgentes,
-    manutencoes_proximas, garantias_proximas, documentos_vencendo, lista_compras_pendentes } = resumo;
+  // Only show these in Geral view since they don't belong to individuals
+  const itens_falta = isGeral ? resumo.itens_falta || [] : [];
+  const itens_vencendo = isGeral ? resumo.itens_vencendo || [] : [];
+  const itens_vencidos = isGeral ? resumo.itens_vencidos || [] : [];
+  const manutencoes_proximas = isGeral ? resumo.manutencoes_proximas || [] : [];
+  const garantias_proximas = isGeral ? resumo.garantias_proximas || [] : [];
+  
+  const tarefas_pendentes = tarefasParaMostrar.filter(t => t.status === 'pendente');
+  const tarefas_urgentes = tarefas_pendentes.filter(t => t.prioridade === 'Urgente' || t.prioridade === 'Alta');
+  const tarefas_concluidas_hoje = tarefasParaMostrar.filter(t => t.status === 'concluida' && t.data_conclusao === today).length;
+  
+  const documentos_vencendo = docParaMostrar.filter(d => { const dd = daysDiff(d.vencimento); return dd !== null && dd <= 30; }).map(d => ({ ...d, dias: daysDiff(d.vencimento) }));
+
+  // Recalculate Health PCT based on visible metrics
+  let ok = 0;
+  let total_metrics = 0;
+  
+  total_metrics++; if (contas_vencidas.length === 0) ok++;
+  total_metrics++; if (tarefas_urgentes.length === 0) ok++;
+  total_metrics++; if (documentos_vencendo.length === 0) ok++;
+
+  if (isGeral) {
+    total_metrics++; if (itens_falta.length === 0) ok++;
+    total_metrics++; if (itens_vencidos.length === 0) ok++;
+    total_metrics++; if (manutencoes_proximas.length === 0) ok++;
+    total_metrics++; if (garantias_proximas.length === 0) ok++;
+  }
+
+  const health_pct = Math.round((ok / total_metrics) * 100);
 
   const toneColor = { red:'var(--sm-red)', amber:'var(--sm-amber)', blue:'var(--sm-blue)' };
   const alertas = [
