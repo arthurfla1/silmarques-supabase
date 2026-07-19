@@ -51,20 +51,32 @@ export function SelectWithCustom({ options, value, onChange, placeholder = "Digi
   
   const hasOutros = options.some(o => typeof o === 'string' && o.toLowerCase().includes('outr'));
   const safeOptions = hasOutros ? options : [...options, 'Outros'];
+  const optionOutros = safeOptions.find(o => o.toLowerCase().includes('outr')) || 'Outros';
   
   const isValueCustom = value && !safeOptions.includes(value);
+  const isValueExplicitOutros = value === optionOutros;
 
   React.useEffect(() => {
+    // Se o valor não está na lista (e não é vazio), é customizado com certeza.
     if (isValueCustom) {
       setIsCustom(true);
-    } else if (value && safeOptions.includes(value) && !value.toLowerCase().includes('outr')) {
+    } 
+    // Se o valor for literalmente a string "Outros" (ex: banco de dados antigo),
+    // ou se a única opção disponível for "Outros" (ex: Modelo quando Marca é Outra)
+    else if (isValueExplicitOutros || (safeOptions.length === 1 && safeOptions[0] === optionOutros)) {
+      setIsCustom(true);
+      // Se não houver um valor real e a única opção for 'Outros', garante que o onChange dispare com vazio
+      // para não salvar a string "Outro modelo" literalmente caso o usuário não digite nada, ou apenas deixa vazio
+    }
+    // Caso contrário, se for uma opção válida da lista (ex: "Água"), fecha o custom
+    else if (value && safeOptions.includes(value) && value !== optionOutros) {
       setIsCustom(false);
     }
-  }, [value, isValueCustom, safeOptions]);
+  }, [value, isValueCustom, isValueExplicitOutros, safeOptions, optionOutros]);
 
   const handleSelect = (e) => {
     const val = e.target.value;
-    if (val.toLowerCase().includes('outr')) {
+    if (val === optionOutros) {
       setIsCustom(true);
       onChange(''); // clear it so user types
     } else {
@@ -75,8 +87,7 @@ export function SelectWithCustom({ options, value, onChange, placeholder = "Digi
 
   const getSelectValue = () => {
     if (isCustom) {
-      const optionOutros = safeOptions.find(o => o.toLowerCase().includes('outr'));
-      return optionOutros || 'Outros';
+      return optionOutros;
     }
     return value || '';
   };

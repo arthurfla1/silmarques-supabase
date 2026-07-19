@@ -1636,8 +1636,8 @@ function VeiculoForm({ veiculo, saving, onSave, onClose }) {
   return (
     <form onSubmit={e=>{e.preventDefault();onSave({...form,ano:Number(form.ano),km:Number(form.km),proxima_troca_km:form.proxima_troca_km?Number(form.proxima_troca_km):null,proxima_troca_data:form.proxima_troca_data||null,seguro_vencimento:form.seguro_vencimento||null,licenciamento_vencimento:form.licenciamento_vencimento||null});}} style={{ display:'flex', flexDirection:'column', gap:14 }}>
       <div className="grid-2">
-        <Field label="Marca"><SelectWithCustom options={marcas} value={form.marca} onChange={val=>{ setForm(f => ({ ...f, marca: val, modelo: CAR_BRANDS[val] ? CAR_BRANDS[val][0] : 'Outro modelo' })); }} /></Field>
-        <Field label="Modelo"><SelectWithCustom options={modelos} value={form.modelo} onChange={val=>set('modelo',val)} /></Field>
+        <Field label="Marca"><SelectWithCustom placeholder="Digite a marca..." options={marcas} value={form.marca} onChange={val=>{ setForm(f => ({ ...f, marca: val, modelo: CAR_BRANDS[val] ? CAR_BRANDS[val][0] : '' })); }} /></Field>
+        <Field label="Modelo"><SelectWithCustom placeholder="Digite o modelo..." options={modelos} value={form.modelo} onChange={val=>set('modelo',val)} /></Field>
       </div>
       <div className="grid-3">
         <Field label="Ano"><Input required type="number" value={form.ano} onChange={e=>set('ano',e.target.value)}/></Field>
