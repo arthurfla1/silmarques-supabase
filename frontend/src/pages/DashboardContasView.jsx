@@ -112,7 +112,7 @@ export function DashboardContasView({ contas, allContas, cartoes, investimentos,
 
       {/* Cards de Topo */}
       <div className="grid-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
-        <Card style={{ padding: 16, background: 'linear-gradient(135deg, #fce4e4 0%, #ffffff 100%)', border: '1px solid #f7c8c8' }}>
+        <Card style={{ padding: 16 }}>
           <div style={{ fontSize: 12, color: 'var(--sm-text-soft)', fontWeight: 600, marginBottom: 4, textTransform: 'uppercase' }}>
             Despesas no Período
           </div>
