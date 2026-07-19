@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2, TrendingUp, RefreshCw, Target, DollarSign, Wallet } from 'lucide-react';
 import { Card, SectionHeader, Btn, Input, Select, Field, Modal, EmptyState, ProgressBar, ErrorBanner } from '../components/ui';
 import { fmtMoney, fmtDate } from '../lib/constants';
@@ -107,6 +107,27 @@ export function InvestimentosView({ investimentos, saving, save, remove, reload 
   const [activeTab, setActiveTab] = useState('carteira');
   const [syncing, setSyncing] = useState(false);
   const [syncError, setSyncError] = useState('');
+  const [quotes, setQuotes] = useState(null);
+
+  useEffect(() => {
+    const fetchQuotes = async () => {
+      try {
+        const res = await fetch('https://economia.awesomeapi.com.br/last/USD-BRL,EUR-BRL,BTC-BRL,ETH-BRL');
+        if (res.ok) {
+          const data = await res.json();
+          setQuotes({
+            USD: parseFloat(data.USDBRL.ask),
+            EUR: parseFloat(data.EURBRL.ask),
+            BTC: parseFloat(data.BTCBRL.ask),
+            ETH: parseFloat(data.ETHBRL.ask)
+          });
+        }
+      } catch (e) {
+        console.error('Erro ao buscar cotações iniciais:', e);
+      }
+    };
+    fetchQuotes();
+  }, []);
 
   const handleSave = async (payload) => {
     const ok = await save(payload, modal?.id);
@@ -158,6 +179,23 @@ export function InvestimentosView({ investimentos, saving, save, remove, reload 
 
   return (
     <div>
+      {quotes && (
+        <div style={{ display: 'flex', gap: 16, padding: '10px 14px', background: 'var(--sm-surface)', border: '1px solid var(--sm-border)', borderRadius: 'var(--radius-lg)', marginBottom: 16, overflowX: 'auto', whiteSpace: 'nowrap' }}>
+          <div style={{ fontSize: 13, color: 'var(--sm-text-soft)', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontWeight: 600, color: 'var(--sm-text)' }}>🇺🇸 USD:</span> {fmtMoney(quotes.USD)}
+          </div>
+          <div style={{ fontSize: 13, color: 'var(--sm-text-soft)', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontWeight: 600, color: 'var(--sm-text)' }}>🇪🇺 EUR:</span> {fmtMoney(quotes.EUR)}
+          </div>
+          <div style={{ fontSize: 13, color: 'var(--sm-text-soft)', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontWeight: 600, color: 'var(--sm-text)' }}>₿ BTC:</span> {fmtMoney(quotes.BTC)}
+          </div>
+          <div style={{ fontSize: 13, color: 'var(--sm-text-soft)', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontWeight: 600, color: 'var(--sm-text)' }}>⬨ ETH:</span> {fmtMoney(quotes.ETH)}
+          </div>
+        </div>
+      )}
+
       <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
         <button onClick={() => setActiveTab('carteira')} style={{ flex: 1, padding: 12, borderRadius: 12, border: 'none', background: activeTab === 'carteira' ? 'var(--sm-red)' : 'var(--sm-surface)', color: activeTab === 'carteira' ? '#fff' : 'var(--sm-text-soft)', fontWeight: 600, fontSize: 14, cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
           <TrendingUp size={18} /> Minha Carteira
