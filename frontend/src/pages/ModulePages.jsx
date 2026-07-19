@@ -160,7 +160,7 @@ export function ContasPage() {
         <DashboardContasView 
           contas={contas.filter(c => visao === 'Geral' ? c.visibilidade === 'Geral' : c.visibilidade === 'Individual')} 
           allContas={contas}
-          cartoes={cartoes} 
+          cartoes={cartoes.filter(c => visao === 'Geral' ? c.visibilidade === 'Geral' || !c.visibilidade : c.visibilidade === 'Individual')} 
           investimentos={investimentos.filter(i => visao === 'Geral' ? i.visibilidade === 'Geral' : i.visibilidade === 'Individual')} 
           allInvestimentos={investimentos}
         />
@@ -302,7 +302,7 @@ export function ContasPage() {
 
       {activeTab === 'cartoes' && (
         <CartoesView 
-          cartoes={cartoes} 
+          cartoes={cartoes.filter(c => visao === 'Geral' ? c.visibilidade === 'Geral' || !c.visibilidade : c.visibilidade === 'Individual')} 
           contas={contas} 
           saving={savingCartao} 
           save={saveCartao} 
@@ -953,7 +953,7 @@ function ImportExtratoForm({ familia, cartoes, contasExistentes, onImport, onClo
 }
 
 function CartaoForm({ cartao, saving, onSave, onClose }) {
-  const [form, setForm] = useState(cartao ? { ...cartao } : { nome: '', banco: CARTOES_BANCOS[0].nome, limite: '', dia_vencimento: 10, dia_fechamento: 1 });
+  const [form, setForm] = useState(cartao ? { ...cartao } : { nome: '', banco: CARTOES_BANCOS[0].nome, limite: '', dia_vencimento: 10, dia_fechamento: 1, visibilidade: 'Geral' });
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   
   return (
@@ -971,6 +971,7 @@ function CartaoForm({ cartao, saving, onSave, onClose }) {
         <Field label="Dia do Vencimento"><Input required type="number" min="1" max="31" value={form.dia_vencimento} onChange={e => set('dia_vencimento', Number(e.target.value))} /></Field>
         <Field label="Dia do Fechamento"><Input required type="number" min="1" max="31" value={form.dia_fechamento} onChange={e => set('dia_fechamento', Number(e.target.value))} /></Field>
       </div>
+      <Field label="Visibilidade"><Select value={form.visibilidade || 'Geral'} onChange={e => set('visibilidade', e.target.value)}>{VISIBILIDADE_OPCOES.map(v => <option key={v}>{v}</option>)}</Select></Field>
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 6 }}>
         <Btn variant="secondary" onClick={onClose}>Cancelar</Btn>
         <Btn type="submit" disabled={saving}>{saving ? 'Salvando...' : 'Salvar Cartão'}</Btn>
