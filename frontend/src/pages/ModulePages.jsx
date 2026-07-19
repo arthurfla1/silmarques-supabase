@@ -7,7 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import { InvestimentosView } from './InvestimentosView';
 import { DashboardContasView } from './DashboardContasView';
 
-import { Card, SectionHeader, Btn, Input, Select, Field, Modal, TextArea, Badge, IconBtn, EmptyState, Metric, ProgressBar, Avatar, LoadingScreen, ErrorBanner, FileUploader } from '../components/ui';
+import { Card, SectionHeader, Btn, Input, Select, SelectWithCustom, Field, Modal, TextArea, Badge, IconBtn, EmptyState, Metric, ProgressBar, Avatar, LoadingScreen, ErrorBanner, FileUploader } from '../components/ui';
 import { CONTA_CATEGORIAS, ESTOQUE_CATEGORIAS, ESTOQUE_LOCAIS, LIMPEZA_AMBIENTES, LIMPEZA_FREQ, LIMPEZA_PRIORIDADES, VEICULO_CATEGORIAS, DOC_CATEGORIAS, BEM_CATEGORIAS, COMPRA_UNIDADES, MERCADO_CATEGORIAS, PERMISSOES, FEIRA_ITENS, CAR_BRANDS, CARTOES_BANCOS, VISIBILIDADE_OPCOES, fmtMoney, fmtDate, todayStr, addDays, daysUntil, downloadCSV } from '../lib/constants';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, CartesianGrid, LineChart, Line } from 'recharts';
 
@@ -1089,7 +1089,7 @@ function ContaForm({ conta, cartoes, familia, saving, onSave, onClose }) {
     <form onSubmit={e => { e.preventDefault(); onSave({ ...form, valor: Number(form.valor) }); }} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <Field label="Descrição"><Input required value={form.descricao} onChange={e => set('descricao', e.target.value)} placeholder="Ex: Conta de luz" /></Field>
       <div className="grid-2">
-        <Field label="Categoria"><Select value={form.categoria} onChange={e => set('categoria', e.target.value)}>{Array.from(new Set([form.categoria || CONTA_CATEGORIAS[0], ...CONTA_CATEGORIAS])).map(c => <option key={c}>{c}</option>)}</Select></Field>
+        <Field label="Categoria"><SelectWithCustom options={CONTA_CATEGORIAS} value={form.categoria} onChange={val => set('categoria', val)} /></Field>
         <Field label="Valor (R$)"><Input required type="number" step="0.01" min="0" value={form.valor} onChange={e => set('valor', e.target.value)} /></Field>
       </div>
       <div className="grid-2">
@@ -1233,7 +1233,7 @@ function EstoqueForm({ item, saving, onSave, onClose }) {
         <Field label="Marca"><Input value={form.marca} onChange={e=>set('marca',e.target.value)}/></Field>
       </div>
       <div className="grid-2">
-        <Field label="Categoria"><Select value={form.categoria} onChange={e=>set('categoria',e.target.value)}>{ESTOQUE_CATEGORIAS.map(c=><option key={c}>{c}</option>)}</Select></Field>
+        <Field label="Categoria"><SelectWithCustom options={ESTOQUE_CATEGORIAS} value={form.categoria} onChange={val => set('categoria', val)} /></Field>
         <Field label="Local"><Select value={form.local} onChange={e=>set('local',e.target.value)}>{ESTOQUE_LOCAIS.map(l=><option key={l}>{l}</option>)}</Select></Field>
       </div>
       <div className="grid-3">
@@ -1355,7 +1355,7 @@ function CompraForm({ onSave, onClose }) {
       <Field label="Produto"><Input required value={form.produto} onChange={e=>set('produto',e.target.value)}/></Field>
       <div className="grid-2">
         <Field label="Tipo"><Select value={form.tipo} onChange={e=>set('tipo',e.target.value)}><option value="feira">Feira</option><option value="mercado">Mercado</option></Select></Field>
-        <Field label="Categoria"><Select value={form.categoria} onChange={e=>set('categoria',e.target.value)}>{(form.tipo==='feira'?Object.keys(FEIRA_ITENS):MERCADO_CATEGORIAS).map(c=><option key={c}>{c}</option>)}</Select></Field>
+        <Field label="Categoria"><SelectWithCustom options={form.tipo==='feira'?Object.keys(FEIRA_ITENS):MERCADO_CATEGORIAS} value={form.categoria} onChange={val => set('categoria', val)} /></Field>
       </div>
       <div className="grid-2">
         <Field label="Qtd"><Input required type="number" step="0.01" min="0" value={form.quantidade} onChange={e=>set('quantidade',e.target.value)}/></Field>
@@ -1667,7 +1667,7 @@ function ManutForm({ veiculo, saving, onSave, onClose }) {
     <form onSubmit={e=>{e.preventDefault();onSave({...form,valor:Number(form.valor)||0,km:Number(form.km)});}} style={{ display:'flex', flexDirection:'column', gap:14 }}>
       <div className="grid-2">
         <Field label="Data"><Input required type="date" value={form.data} onChange={e=>set('data',e.target.value)}/></Field>
-        <Field label="Categoria"><Select value={form.categoria} onChange={e=>set('categoria',e.target.value)}>{VEICULO_CATEGORIAS.map(c=><option key={c}>{c}</option>)}</Select></Field>
+        <Field label="Categoria"><SelectWithCustom options={VEICULO_CATEGORIAS} value={form.categoria} onChange={val => set('categoria', val)} /></Field>
       </div>
       <Field label="Descrição"><Input required value={form.descricao} onChange={e=>set('descricao',e.target.value)} placeholder="Ex: Troca de óleo"/></Field>
       <div className="grid-2">
@@ -1757,7 +1757,7 @@ function DocForm({ doc, familia, saving, onSave, onClose }) {
   return (
     <form onSubmit={e=>{e.preventDefault();const{tagsStr,...rest}=form;onSave({...rest,vencimento:form.vencimento||null,emissao:form.emissao||null,tags:tagsStr.split(',').map(t=>t.trim()).filter(Boolean)});}} style={{ display:'flex', flexDirection:'column', gap:14 }}>
       <Field label="Nome"><Input required value={form.nome} onChange={e=>set('nome',e.target.value)}/></Field>
-      <Field label="Categoria"><Select value={form.categoria} onChange={e=>set('categoria',e.target.value)}>{DOC_CATEGORIAS.map(c=><option key={c}>{c}</option>)}</Select></Field>
+      <Field label="Categoria"><SelectWithCustom options={DOC_CATEGORIAS} value={form.categoria} onChange={val => set('categoria', val)} /></Field>
       <Field label="Descrição"><TextArea value={form.descricao} onChange={e=>set('descricao',e.target.value)}/></Field>
       <div className="grid-2">
         <Field label="Data de emissão"><Input type="date" value={form.emissao} onChange={e=>set('emissao',e.target.value)}/></Field>
@@ -1864,7 +1864,7 @@ function BemForm({ bem, saving, onSave, onClose }) {
     <form onSubmit={e=>{e.preventDefault();onSave({...form,valor:Number(form.valor)||0,data_compra:form.data_compra||null,garantia_inicio:form.garantia_inicio||null,garantia_fim:form.garantia_fim||null});}} style={{ display:'flex', flexDirection:'column', gap:14 }}>
       <div className="grid-2-1">
         <Field label="Nome"><Input required value={form.nome} onChange={e=>set('nome',e.target.value)}/></Field>
-        <Field label="Categoria"><Select value={form.categoria} onChange={e=>set('categoria',e.target.value)}>{BEM_CATEGORIAS.map(c=><option key={c}>{c}</option>)}</Select></Field>
+        <Field label="Categoria"><SelectWithCustom options={BEM_CATEGORIAS} value={form.categoria} onChange={val => set('categoria', val)} /></Field>
       </div>
       <div className="grid-3">
         <Field label="Marca"><Input value={form.marca} onChange={e=>set('marca',e.target.value)}/></Field>

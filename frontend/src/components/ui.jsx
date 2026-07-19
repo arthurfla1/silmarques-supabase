@@ -46,6 +46,58 @@ export function Select({ children, ...p }) {
 }
 export function TextArea(p) { return <textarea {...p} style={{ ...iS, resize:'vertical', minHeight:70, ...(p.style||{}) }}/>; }
 
+export function SelectWithCustom({ options, value, onChange, placeholder = "Digite a categoria..." }) {
+  const [isCustom, setIsCustom] = React.useState(false);
+  
+  const hasOutros = options.some(o => typeof o === 'string' && o.toLowerCase().includes('outros'));
+  const safeOptions = hasOutros ? options : [...options, 'Outros'];
+  
+  const isValueCustom = value && !safeOptions.includes(value);
+
+  React.useEffect(() => {
+    if (isValueCustom) {
+      setIsCustom(true);
+    } else if (value && safeOptions.includes(value) && !value.toLowerCase().includes('outros')) {
+      setIsCustom(false);
+    }
+  }, [value, isValueCustom, safeOptions]);
+
+  const handleSelect = (e) => {
+    const val = e.target.value;
+    if (val.toLowerCase().includes('outros')) {
+      setIsCustom(true);
+      onChange(''); // clear it so user types
+    } else {
+      setIsCustom(false);
+      onChange(val);
+    }
+  };
+
+  const getSelectValue = () => {
+    if (isCustom) {
+      const optionOutros = safeOptions.find(o => o.toLowerCase().includes('outros'));
+      return optionOutros || 'Outros';
+    }
+    return value || '';
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <Select value={getSelectValue()} onChange={handleSelect}>
+        {safeOptions.map(c => <option key={c} value={c}>{c}</option>)}
+      </Select>
+      {isCustom && (
+        <Input 
+          autoFocus
+          placeholder={placeholder}
+          value={isValueCustom ? value : ''} 
+          onChange={e => onChange(e.target.value)} 
+        />
+      )}
+    </div>
+  );
+}
+
 export function Modal({ title, onClose, children, width=520 }) {
   React.useEffect(() => {
     const originalOverflow = document.body.style.overflow;
