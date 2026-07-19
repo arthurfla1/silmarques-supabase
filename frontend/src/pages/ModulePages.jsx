@@ -156,6 +156,82 @@ export function ContasPage() {
         </button>
       </div>
 
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginBottom: 16, background: 'var(--sm-surface)', border: '1px solid var(--sm-border)', borderRadius: 'var(--radius-lg)', padding: 14 }}>
+        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--sm-text)' }}>Visão:</span>
+        <div style={{ display: 'flex', gap: 8, marginRight: 16, borderRight: activeTab === 'contas' ? '1px solid var(--sm-border)' : 'none', paddingRight: 16 }}>
+          {['Geral', 'Individual'].map(v => (
+            <button
+              key={v}
+              onClick={() => setVisao(v)}
+              style={{
+                padding: '6px 12px',
+                borderRadius: 8,
+                fontSize: 13,
+                fontWeight: 600,
+                border: '1px solid var(--sm-border)',
+                background: visao === v ? 'var(--sm-red)' : 'var(--sm-bg)',
+                color: visao === v ? '#fff' : 'var(--sm-text-soft)',
+                cursor: 'pointer',
+                transition: 'all 0.15s'
+              }}
+            >
+              {v}
+            </button>
+          ))}
+        </div>
+        
+        {activeTab === 'contas' && (
+          <>
+            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--sm-text)' }}>Período:</span>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {[
+                { id: 'mes', label: '1 Mês' },
+                { id: 'trimestre', label: 'Trimestral' },
+                { id: 'ano', label: 'Anual' },
+                { id: 'custom', label: 'Especificar Período' },
+                { id: 'todos', label: 'Todos' }
+              ].map(p => (
+                <button
+                  key={p.id}
+                  onClick={() => setPeriodo(p.id)}
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: 8,
+                    fontSize: 13,
+                    fontWeight: 600,
+                    border: '1px solid var(--sm-border)',
+                    background: periodo === p.id ? 'var(--sm-red)' : 'var(--sm-bg)',
+                    color: periodo === p.id ? '#fff' : 'var(--sm-text-soft)',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s'
+                  }}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+            
+            {periodo === 'custom' && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto', flexWrap: 'wrap' }}>
+                <Input
+                  type="date"
+                  value={dataInicio}
+                  onChange={e => setDataInicio(e.target.value)}
+                  style={{ width: 130, padding: '6px 10px', fontSize: 12.5 }}
+                />
+                <span style={{ fontSize: 12.5, color: 'var(--sm-text-soft)' }}>até</span>
+                <Input
+                  type="date"
+                  value={dataFim}
+                  onChange={e => setDataFim(e.target.value)}
+                  style={{ width: 130, padding: '6px 10px', fontSize: 12.5 }}
+                />
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
       {activeTab === 'dashboard' && (
         <DashboardContasView 
           contas={contas.filter(c => visao === 'Geral' ? c.visibilidade === 'Geral' : c.visibilidade === 'Individual')} 
@@ -168,77 +244,6 @@ export function ContasPage() {
 
       {activeTab === 'contas' && (
         <>
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginBottom: 16, background: 'var(--sm-surface)', border: '1px solid var(--sm-border)', borderRadius: 'var(--radius-lg)', padding: 14 }}>
-            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--sm-text)' }}>Visão:</span>
-            <div style={{ display: 'flex', gap: 8, marginRight: 16, borderRight: '1px solid var(--sm-border)', paddingRight: 16 }}>
-              {['Geral', 'Individual'].map(v => (
-                <button
-                  key={v}
-                  onClick={() => setVisao(v)}
-                  style={{
-                    padding: '6px 12px',
-                    borderRadius: 8,
-                    fontSize: 13,
-                    fontWeight: 600,
-                    border: '1px solid var(--sm-border)',
-                    background: visao === v ? 'var(--sm-red)' : 'var(--sm-bg)',
-                    color: visao === v ? '#fff' : 'var(--sm-text-soft)',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s'
-                  }}
-                >
-                  {v}
-                </button>
-              ))}
-            </div>
-            
-            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--sm-text)' }}>Período:</span>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          {[
-            { id: 'mes', label: '1 Mês' },
-            { id: 'trimestre', label: 'Trimestral' },
-            { id: 'ano', label: 'Anual' },
-            { id: 'custom', label: 'Especificar Período' },
-            { id: 'todos', label: 'Todos' }
-          ].map(p => (
-            <button
-              key={p.id}
-              onClick={() => setPeriodo(p.id)}
-              style={{
-                padding: '6px 12px',
-                borderRadius: 8,
-                fontSize: 13,
-                fontWeight: 600,
-                border: '1px solid var(--sm-border)',
-                background: periodo === p.id ? 'var(--sm-red)' : 'var(--sm-bg)',
-                color: periodo === p.id ? '#fff' : 'var(--sm-text-soft)',
-                cursor: 'pointer',
-                transition: 'all 0.15s'
-              }}
-            >
-              {p.label}
-            </button>
-          ))}
-        </div>
-        
-        {periodo === 'custom' && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto', flexWrap: 'wrap' }}>
-            <Input
-              type="date"
-              value={dataInicio}
-              onChange={e => setDataInicio(e.target.value)}
-              style={{ width: 130, padding: '6px 10px', fontSize: 12.5 }}
-            />
-            <span style={{ fontSize: 12.5, color: 'var(--sm-text-soft)' }}>até</span>
-            <Input
-              type="date"
-              value={dataFim}
-              onChange={e => setDataFim(e.target.value)}
-              style={{ width: 130, padding: '6px 10px', fontSize: 12.5 }}
-            />
-          </div>
-        )}
-      </div>
 
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(150px,1fr))', gap:12, marginBottom:16 }}>
         <Metric icon={DollarSign} label={labelTotal} value={fmtMoney(total)}/>
