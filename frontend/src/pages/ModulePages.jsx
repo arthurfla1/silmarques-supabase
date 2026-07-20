@@ -988,8 +988,8 @@ function ContaForm({ conta, cartoes, familia, saving, onSave, onClose }) {
         <Field label="Valor (R$)"><Input required type="number" step="0.01" min="0" value={form.valor} onChange={e => set('valor', e.target.value)} /></Field>
       </div>
       <div className="grid-2">
-        <Field label="Vencimento"><Input required type="date" value={form.vencimento} onChange={e => set('vencimento', e.target.value)} /></Field>
-        <Field label="Forma de Pagamento">
+        <Field label={form.tipo_transacao === 'receita' ? 'Data de Recebimento' : 'Vencimento'}><Input required type="date" value={form.vencimento} onChange={e => set('vencimento', e.target.value)} /></Field>
+        <Field label={form.tipo_transacao === 'receita' ? 'Forma de Recebimento' : 'Forma de Pagamento'}>
           <Select value={form.forma} onChange={e => { set('forma', e.target.value); if (e.target.value !== 'Cartão') set('cartao_id', ''); }}>
             {['Boleto', 'Débito automático', 'Cartão', 'Pix', 'Dinheiro'].map(f => <option key={f}>{f}</option>)}
           </Select>
@@ -1010,7 +1010,7 @@ function ContaForm({ conta, cartoes, familia, saving, onSave, onClose }) {
         <Field label="Visibilidade"><Select value={form.visibilidade} onChange={e => set('visibilidade', e.target.value)}>{VISIBILIDADE_OPCOES.map(v => <option key={v}>{v}</option>)}</Select></Field>
       </div>
       
-      <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14 }}><input type="checkbox" checked={form.status === 'paga'} onChange={e => set('status', e.target.checked ? 'paga' : 'pendente')} /> Marcar como paga</label>
+      <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14 }}><input type="checkbox" checked={form.status === 'paga'} onChange={e => set('status', e.target.checked ? 'paga' : 'pendente')} /> {form.tipo_transacao === 'receita' ? 'Marcar como recebida' : 'Marcar como paga'}</label>
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 6 }}>
         <Btn variant="secondary" onClick={onClose}>Cancelar</Btn>
         <Btn type="submit" disabled={saving}>{saving ? 'Salvando...' : 'Salvar'}</Btn>
