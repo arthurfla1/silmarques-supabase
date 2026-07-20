@@ -969,7 +969,7 @@ function ContaForm({ conta, cartoes, familia, saving, onSave, onClose }) {
   });
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   return (
-    <form onSubmit={e => { e.preventDefault(); onSave({ ...form, valor: Number(form.valor), natureza_custo: form.tipo_transacao === 'receita' ? null : form.natureza_custo }); }} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+    <form onSubmit={e => { e.preventDefault(); onSave({ ...form, valor: Number(form.valor), cartao_id: form.cartao_id || null, natureza_custo: form.tipo_transacao === 'receita' ? null : form.natureza_custo }); }} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <div style={{ display: 'flex', gap: 10 }}>
         <button type="button" onClick={() => setForm(f => ({ ...f, tipo_transacao: 'receita', categoria: RECEITA_CATEGORIAS[0] }))} style={{ flex: 1, padding: 12, borderRadius: 8, border: '1px solid var(--sm-border)', background: form.tipo_transacao === 'receita' ? 'var(--sm-green)' : 'var(--sm-surface)', color: form.tipo_transacao === 'receita' ? '#fff' : 'var(--sm-text)', fontWeight: 600, cursor: 'pointer' }}>📈 Receita</button>
         <button type="button" onClick={() => setForm(f => ({ ...f, tipo_transacao: 'despesa', categoria: CONTA_CATEGORIAS[0] }))} style={{ flex: 1, padding: 12, borderRadius: 8, border: '1px solid var(--sm-border)', background: form.tipo_transacao === 'despesa' ? 'var(--sm-red)' : 'var(--sm-surface)', color: form.tipo_transacao === 'despesa' ? '#fff' : 'var(--sm-text)', fontWeight: 600, cursor: 'pointer' }}>📉 Despesa</button>
