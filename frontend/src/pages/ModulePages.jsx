@@ -62,6 +62,7 @@ export function ContasPage() {
   const [dataInicio, setDataInicio] = useState('');
   const [dataFim, setDataFim] = useState('');
   const [importModalOpen, setImportModalOpen] = useState(false);
+  const [importModalStep, setImportModalStep] = useState(1);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [visao, setVisao] = useState('Geral');
   const { data:cartoes, setData:setCartoes, loading:loadingCartoes, error:errorCartoes, reload:reloadCartoes, saving:savingCartao, actionError:actionErrorCartao, save:saveCartao, remove:removeCartao } = useCRUD(cartoesApi);
@@ -142,7 +143,7 @@ export function ContasPage() {
       <SectionHeader title="Contas da casa" subtitle="Vencimentos, pagamentos e gastos por categoria."
         action={
           <div style={{ display:'flex', gap:10 }}>
-            <Btn variant="secondary" icon={Download} onClick={()=>setImportModalOpen(true)}>Importar Extrato</Btn>
+            <Btn variant="secondary" icon={Download} onClick={()=>{setImportModalStep(1);setImportModalOpen(true);}}>Importar Extrato</Btn>
             <Btn icon={Plus} onClick={()=>setModal({})}>Nova conta</Btn>
           </div>
         }/>
@@ -350,8 +351,9 @@ export function ContasPage() {
         </Modal>
       )}
       {importModalOpen && (
-        <Modal title="Importar Extrato Bancário" onClose={() => setImportModalOpen(false)} width={1400}>
+        <Modal title="Importar Extrato Bancário" onClose={() => setImportModalOpen(false)} width={importModalStep === 1 ? 780 : importModalStep === 2 ? 1400 : 520}>
           <ImportExtratoForm
+            onStepChange={setImportModalStep}
             familia={familia}
             contasExistentes={contas}
             cartoes={cartoes}
@@ -546,7 +548,7 @@ const parseStatementText = (text) => {
   return results;
 };
 
-function ImportExtratoForm({ familia, cartoes, contasExistentes, onImport, onClose }) {
+function ImportExtratoForm({ familia, cartoes, contasExistentes, onImport, onClose, onStepChange }) {
   const [file, setFile] = useState(null);
   const [defaultResponsavel, setDefaultResponsavel] = useState('');
   const [defaultCartao, setDefaultCartao] = useState('');
@@ -556,6 +558,10 @@ function ImportExtratoForm({ familia, cartoes, contasExistentes, onImport, onClo
   const [saving, setSaving] = useState(false);
   const [loadingFile, setLoadingFile] = useState(false);
   const [errorFile, setErrorFile] = useState('');
+
+  React.useEffect(() => {
+    if (onStepChange) onStepChange(step);
+  }, [step, onStepChange]);
 
   const loadPdfjs = () => {
     return new Promise((resolve) => {
