@@ -834,8 +834,7 @@ function ImportExtratoForm({ familia, cartoes, contasExistentes, onImport, onClo
           <div style={{ marginBottom: 16 }}>
             <h3 style={{ fontSize: 18, color: 'var(--sm-text)' }}>Revisar Transações Identificadas</h3>
             <p style={{ color: 'var(--sm-text-soft)', fontSize: 14 }}>
-              A Inteligência Artificial classificou as transações. Você pode ajustar as categorias caso alguma não esteja 100% correta.
-              {preview.duplicados > 0 && ` (${preview.duplicados} transações duplicadas foram ignoradas)`}
+              A Inteligência Artificial classificou as transações. Você pode ajustar as categorias ou remover as duplicadas que não deseja importar.
             </p>
           </div>
           
@@ -847,6 +846,7 @@ function ImportExtratoForm({ familia, cartoes, contasExistentes, onImport, onClo
                   <th style={{ padding: 12, textAlign: 'left', color: 'var(--sm-text-soft)', fontSize: 13, fontWeight: 600 }}>Descrição</th>
                   <th style={{ padding: 12, textAlign: 'left', color: 'var(--sm-text-soft)', fontSize: 13, fontWeight: 600 }}>Categoria (IA)</th>
                   <th style={{ padding: 12, textAlign: 'right', color: 'var(--sm-text-soft)', fontSize: 13, fontWeight: 600 }}>Valor</th>
+                  <th style={{ padding: 12, textAlign: 'center', color: 'var(--sm-text-soft)', fontSize: 13, fontWeight: 600 }}>Remover</th>
                 </tr>
               </thead>
               <tbody>
@@ -872,6 +872,21 @@ function ImportExtratoForm({ familia, cartoes, contasExistentes, onImport, onClo
                         {t.tipo_transacao === 'receita' ? '+' : ''}{fmtMoney(t.valor)}
                       </span>
                     </td>
+                    <td style={{ padding: 12, textAlign: 'center' }}>
+                      <button 
+                        type="button"
+                        onClick={() => {
+                          const novas = [...preview.transacoes];
+                          novas.splice(idx, 1);
+                          setPreview({ ...preview, transacoes: novas });
+                          if (novas.length === 0) setStep(1); // Go back if all removed
+                        }}
+                        style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--sm-red)', padding: 4 }}
+                        title="Remover transação"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -890,8 +905,7 @@ function ImportExtratoForm({ familia, cartoes, contasExistentes, onImport, onClo
           <h3 style={{ fontSize: 20, marginBottom: 8, color: 'var(--sm-text)' }}>Importação Concluída!</h3>
           <p style={{ color: 'var(--sm-text-soft)', marginBottom: 24, fontSize: 14 }}>
             Sincronizamos seu extrato com sucesso.<br/>
-            <strong>{preview.transacoes?.length || 0}</strong> novas transações foram adicionadas.<br/>
-            {preview.duplicados > 0 && <span style={{ color: 'var(--sm-text-faint)' }}>({preview.duplicados} transações duplicadas foram ignoradas)</span>}
+            <strong>{preview.transacoes?.length || 0}</strong> novas transações foram adicionadas.
           </p>
           <Btn onClick={handleConfirm}>Voltar para Contas</Btn>
         </div>

@@ -64,18 +64,11 @@ export async function processarExtratoCSV(file, householdId, defaultResponsavel,
     transacoesNorm.push({ ...t, hash });
   }
 
-  const hashes = transacoesNorm.map(t => t.hash);
-  const { data: existentes } = await supabase
-    .from('contas')
-    .select('hash_dedup')
-    .eq('household_id', householdId)
-    .in('hash_dedup', hashes);
-
-  const setExistentes = new Set((existentes || []).map(e => e.hash_dedup));
-  const transacoesNovas = transacoesNorm.filter(t => !setExistentes.has(t.hash));
+  // We no longer filter out duplicates automatically, so all are considered 'novas'
+  const transacoesNovas = transacoesNorm;
 
   if (transacoesNovas.length === 0) {
-    return { transacoes: [], duplicados: transacoesNorm.length, importacao_id: importacao?.id };
+    return { transacoes: [], duplicados: 0, importacao_id: importacao?.id };
   }
 
   // 5. Classificação
@@ -153,7 +146,7 @@ export async function processarExtratoCSV(file, householdId, defaultResponsavel,
 
   return {
     transacoes: paraInserir,
-    duplicados: transacoesNorm.length - transacoesNovas.length,
+    duplicados: 0,
     importacao_id: importacao?.id
   };
 }
