@@ -847,8 +847,6 @@ function ImportExtratoForm({ familia, cartoes, contasExistentes, onImport, onClo
                   <th style={{ padding: 12, textAlign: 'left', color: 'var(--sm-text-soft)', fontSize: 13, fontWeight: 600 }}>Tipo</th>
                   <th style={{ padding: 12, textAlign: 'left', color: 'var(--sm-text-soft)', fontSize: 13, fontWeight: 600 }}>Natureza</th>
                   <th style={{ padding: 12, textAlign: 'left', color: 'var(--sm-text-soft)', fontSize: 13, fontWeight: 600 }}>Categoria (IA)</th>
-                  <th style={{ padding: 12, textAlign: 'left', color: 'var(--sm-text-soft)', fontSize: 13, fontWeight: 600 }}>Responsável</th>
-                  <th style={{ padding: 12, textAlign: 'left', color: 'var(--sm-text-soft)', fontSize: 13, fontWeight: 600 }}>Visibilidade</th>
                   <th style={{ padding: 12, textAlign: 'left', color: 'var(--sm-text-soft)', fontSize: 13, fontWeight: 600 }}>Cartão</th>
                   <th style={{ padding: 12, textAlign: 'right', color: 'var(--sm-text-soft)', fontSize: 13, fontWeight: 600 }}>Valor</th>
                   <th style={{ padding: 12, textAlign: 'center', color: 'var(--sm-text-soft)', fontSize: 13, fontWeight: 600 }}>Del</th>
@@ -902,36 +900,6 @@ function ImportExtratoForm({ familia, cartoes, contasExistentes, onImport, onClo
                         style={{ padding: '6px 8px', borderRadius: 6, border: '1px solid var(--sm-border)', background: 'var(--sm-bg)', color: 'var(--sm-text)', width: '100%', minWidth: 100 }}
                       >
                         {[...new Set([...CONTA_CATEGORIAS, ...RECEITA_CATEGORIAS])].map(c => <option key={c} value={c}>{c}</option>)}
-                      </select>
-                    </td>
-                    <td style={{ padding: 12 }}>
-                      <select
-                        value={t.responsavel || ''}
-                        onChange={e => {
-                          const novas = [...preview.transacoes];
-                          novas[idx].responsavel = e.target.value || null;
-                          setPreview({ ...preview, transacoes: novas });
-                        }}
-                        style={{ padding: '6px 8px', borderRadius: 6, border: '1px solid var(--sm-border)', background: 'var(--sm-bg)', color: 'var(--sm-text)', width: '100%', minWidth: 100 }}
-                      >
-                        <option value="">Nenhum</option>
-                        {familia.filter(m => m.status !== 'pendente').map(m => (
-                          <option key={m.id} value={m.nome}>{m.nome}</option>
-                        ))}
-                      </select>
-                    </td>
-                    <td style={{ padding: 12 }}>
-                      <select
-                        value={t.visibilidade || 'Geral'}
-                        onChange={e => {
-                          const novas = [...preview.transacoes];
-                          novas[idx].visibilidade = e.target.value;
-                          setPreview({ ...preview, transacoes: novas });
-                        }}
-                        style={{ padding: '6px 8px', borderRadius: 6, border: '1px solid var(--sm-border)', background: 'var(--sm-bg)', color: 'var(--sm-text)', width: '100%', minWidth: 90 }}
-                      >
-                        <option value="Geral">Geral</option>
-                        <option value="Individual">Individual</option>
                       </select>
                     </td>
                     <td style={{ padding: 12 }}>
