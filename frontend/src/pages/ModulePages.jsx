@@ -696,6 +696,28 @@ function ImportExtratoForm({ familia, cartoes, contasExistentes, onImport, onClo
     setErrorFile('');
   };
 
+  const handleImportarTudo = async () => {
+    setSaving(true);
+    setErrorFile('');
+    try {
+      const { error } = await supabase.from('contas').insert(preview.transacoes);
+      if (error) throw error;
+      
+      if (preview.importacao_id) {
+        await supabase.from('importacoes').update({
+          status: 'concluido',
+          total_lancamentos: preview.transacoes.length
+        }).eq('id', preview.importacao_id);
+      }
+      
+      setStep(3);
+    } catch (e) {
+      setErrorFile(e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleAnalisar = async () => {
     if (!file) {
       setErrorFile('Por favor, selecione um arquivo primeiro.');
@@ -707,11 +729,11 @@ function ImportExtratoForm({ familia, cartoes, contasExistentes, onImport, onClo
       const json = await processarExtratoCSV(file, familia[0]?.household_id, defaultResponsavel, defaultVisibilidade, defaultCartao);
 
       setPreview({
-        importado: json.importado,
+        transacoes: json.transacoes,
         duplicados: json.duplicados,
-        precisa_revisao: json.precisa_revisao
+        importacao_id: json.importacao_id
       });
-      setStep(3); // Success Screen
+      setStep(json.transacoes.length > 0 ? 2 : 3);
     } catch (err) {
       setErrorFile(err.message || 'Erro ao processar arquivo.');
     } finally {
@@ -807,12 +829,68 @@ function ImportExtratoForm({ familia, cartoes, contasExistentes, onImport, onClo
             </Btn>
           </div>
         </>
+      ) : step === 2 ? (
+        <>
+          <div style={{ marginBottom: 16 }}>
+            <h3 style={{ fontSize: 18, color: 'var(--sm-text)' }}>Revisar Transações Identificadas</h3>
+            <p style={{ color: 'var(--sm-text-soft)', fontSize: 14 }}>
+              A Inteligência Artificial classificou as transações. Você pode ajustar as categorias caso alguma não esteja 100% correta.
+              {preview.duplicados > 0 && ` (${preview.duplicados} transações duplicadas foram ignoradas)`}
+            </p>
+          </div>
+          
+          <div style={{ maxHeight: 400, overflowY: 'auto', border: '1px solid var(--sm-border)', borderRadius: 8 }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ background: 'var(--sm-surface)', borderBottom: '1px solid var(--sm-border)' }}>
+                  <th style={{ padding: 12, textAlign: 'left', color: 'var(--sm-text-soft)', fontSize: 13, fontWeight: 600 }}>Data</th>
+                  <th style={{ padding: 12, textAlign: 'left', color: 'var(--sm-text-soft)', fontSize: 13, fontWeight: 600 }}>Descrição</th>
+                  <th style={{ padding: 12, textAlign: 'left', color: 'var(--sm-text-soft)', fontSize: 13, fontWeight: 600 }}>Categoria (IA)</th>
+                  <th style={{ padding: 12, textAlign: 'right', color: 'var(--sm-text-soft)', fontSize: 13, fontWeight: 600 }}>Valor</th>
+                </tr>
+              </thead>
+              <tbody>
+                {preview.transacoes?.map((t, idx) => (
+                  <tr key={idx} style={{ borderBottom: '1px solid var(--sm-border)' }}>
+                    <td style={{ padding: 12, fontSize: 14, color: 'var(--sm-text)' }}>{fmtDate(t.vencimento)}</td>
+                    <td style={{ padding: 12, fontSize: 14, color: 'var(--sm-text)' }}>{t.descricao}</td>
+                    <td style={{ padding: 12 }}>
+                      <select
+                        value={t.categoria}
+                        onChange={e => {
+                          const novas = [...preview.transacoes];
+                          novas[idx].categoria = e.target.value;
+                          setPreview({ ...preview, transacoes: novas });
+                        }}
+                        style={{ padding: '6px 8px', borderRadius: 6, border: '1px solid var(--sm-border)', background: 'var(--sm-bg)', color: 'var(--sm-text)', width: '100%' }}
+                      >
+                        {[...new Set([...CONTA_CATEGORIAS, ...RECEITA_CATEGORIAS])].map(c => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                    </td>
+                    <td style={{ padding: 12, textAlign: 'right', fontSize: 14, color: 'var(--sm-text)', fontWeight: 600 }}>
+                      <span style={{ color: t.tipo_transacao === 'receita' ? 'var(--sm-green)' : 'var(--sm-text)' }}>
+                        {t.tipo_transacao === 'receita' ? '+' : ''}{fmtMoney(t.valor)}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 16 }}>
+            <Btn variant="secondary" onClick={() => setStep(1)}>Voltar</Btn>
+            <Btn onClick={handleImportarTudo} disabled={saving}>
+              {saving ? 'Salvando...' : 'Confirmar e Salvar Transações'}
+            </Btn>
+          </div>
+        </>
       ) : step === 3 ? (
         <div style={{ textAlign: 'center', padding: '40px 20px' }}>
           <h3 style={{ fontSize: 20, marginBottom: 8, color: 'var(--sm-text)' }}>Importação Concluída!</h3>
           <p style={{ color: 'var(--sm-text-soft)', marginBottom: 24, fontSize: 14 }}>
             Sincronizamos seu extrato com sucesso.<br/>
-            <strong>{preview.importado}</strong> novas transações foram adicionadas.<br/>
+            <strong>{preview.transacoes?.length || 0}</strong> novas transações foram adicionadas.<br/>
             {preview.duplicados > 0 && <span style={{ color: 'var(--sm-text-faint)' }}>({preview.duplicados} transações duplicadas foram ignoradas)</span>}
           </p>
           <Btn onClick={handleConfirm}>Voltar para Contas</Btn>

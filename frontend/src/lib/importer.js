@@ -75,8 +75,7 @@ export async function processarExtratoCSV(file, householdId, defaultResponsavel,
   const transacoesNovas = transacoesNorm.filter(t => !setExistentes.has(t.hash));
 
   if (transacoesNovas.length === 0) {
-    if (importacao) await supabase.from('importacoes').update({ status: 'concluido', total_duplicados: transacoesNorm.length }).eq('id', importacao.id);
-    return { importado: 0, duplicados: transacoesNorm.length, precisa_revisao: 0 };
+    return { transacoes: [], duplicados: transacoesNorm.length, importacao_id: importacao?.id };
   }
 
   // 5. Classificação
@@ -152,21 +151,9 @@ export async function processarExtratoCSV(file, householdId, defaultResponsavel,
     });
   }
 
-  // 6. Inserir no banco
-  const { error: insertError } = await supabase.from('contas').insert(paraInserir);
-  if (insertError) throw insertError;
-
-  if (importacao) {
-    await supabase.from('importacoes').update({
-      status: 'concluido',
-      total_lancamentos: paraInserir.length,
-      total_duplicados: transacoesNorm.length - transacoesNovas.length
-    }).eq('id', importacao.id);
-  }
-
   return {
-    importado: paraInserir.length,
+    transacoes: paraInserir,
     duplicados: transacoesNorm.length - transacoesNovas.length,
-    precisa_revisao: paraInserir.filter(p => !p.categoria_confirmada).length
+    importacao_id: importacao?.id
   };
 }
