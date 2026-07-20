@@ -8,7 +8,7 @@ import { InvestimentosView } from './InvestimentosView';
 import { DashboardContasView } from './DashboardContasView';
 
 import { Card, SectionHeader, Btn, Input, Select, SelectWithCustom, Field, Modal, TextArea, Badge, IconBtn, EmptyState, Metric, ProgressBar, Avatar, LoadingScreen, ErrorBanner, FileUploader } from '../components/ui';
-import { CONTA_CATEGORIAS, ESTOQUE_CATEGORIAS, ESTOQUE_LOCAIS, LIMPEZA_AMBIENTES, LIMPEZA_FREQ, LIMPEZA_PRIORIDADES, VEICULO_CATEGORIAS, DOC_CATEGORIAS, BEM_CATEGORIAS, COMPRA_UNIDADES, MERCADO_CATEGORIAS, PERMISSOES, FEIRA_ITENS, CAR_BRANDS, CARTOES_BANCOS, VISIBILIDADE_OPCOES, fmtMoney, fmtDate, todayStr, addDays, daysUntil, downloadCSV } from '../lib/constants';
+import { CONTA_CATEGORIAS, RECEITA_CATEGORIAS, ESTOQUE_CATEGORIAS, ESTOQUE_LOCAIS, LIMPEZA_AMBIENTES, LIMPEZA_FREQ, LIMPEZA_PRIORIDADES, VEICULO_CATEGORIAS, DOC_CATEGORIAS, BEM_CATEGORIAS, COMPRA_UNIDADES, MERCADO_CATEGORIAS, PERMISSOES, FEIRA_ITENS, CAR_BRANDS, CARTOES_BANCOS, VISIBILIDADE_OPCOES, fmtMoney, fmtDate, todayStr, addDays, daysUntil, downloadCSV } from '../lib/constants';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, CartesianGrid, LineChart, Line } from 'recharts';
 
 const COLORS = ['#D32F2F','#1565C0','#2E7D32','#B8740A','#6A4C93','#00897B'];
