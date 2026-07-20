@@ -548,6 +548,31 @@ const parseStatementText = (text) => {
   return results;
 };
 
+const DynamicSelect = ({ value, onChange, options, style }) => {
+  const selectedLabel = options.find(o => String(o.value) === String(value))?.label || value || '';
+  
+  return (
+    <div style={{ display: 'inline-grid', alignItems: 'center' }}>
+      <select 
+        value={value} 
+        onChange={onChange} 
+        style={{ ...style, gridArea: '1/1', width: '100%', maxWidth: 'none', textOverflow: 'clip' }}
+      >
+        {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+      </select>
+      <span style={{ 
+        gridArea: '1/1', 
+        visibility: 'hidden', 
+        whiteSpace: 'nowrap',
+        fontSize: style.fontSize || 13,
+        padding: style.padding || '6px 28px 6px 12px'
+      }}>
+        {selectedLabel}
+      </span>
+    </div>
+  );
+};
+
 function ImportExtratoForm({ familia, cartoes, contasExistentes, onImport, onClose, onStepChange }) {
   const [file, setFile] = useState(null);
   const [defaultResponsavel, setDefaultResponsavel] = useState('');
@@ -864,7 +889,7 @@ function ImportExtratoForm({ familia, cartoes, contasExistentes, onImport, onClo
                     <td style={{ padding: '14px 16px', fontSize: 14, color: 'var(--sm-text)', whiteSpace: 'nowrap' }}>{fmtDate(t.vencimento)}</td>
                     <td style={{ padding: '14px 16px', fontSize: 14, color: 'var(--sm-text)' }}>{t.descricao}</td>
                     <td style={{ padding: '14px 16px' }}>
-                      <select
+                      <DynamicSelect
                         value={t.tipo_transacao || 'despesa'}
                         onChange={e => {
                           const novas = [...preview.transacoes];
@@ -872,56 +897,58 @@ function ImportExtratoForm({ familia, cartoes, contasExistentes, onImport, onClo
                           if (e.target.value !== 'despesa') novas[idx].natureza_custo = null;
                           setPreview({ ...preview, transacoes: novas });
                         }}
-                        style={{ padding: '6px 28px 6px 12px', borderRadius: 8, border: '1px solid var(--sm-border)', background: 'var(--sm-bg)', color: 'var(--sm-text)', fontSize: 13, transition: 'all 0.2s', outline: 'none', cursor: 'pointer', appearance: 'none', backgroundImage: `url('data:image/svg+xml;utf8,<svg fill="%23888" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/></svg>')`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 2px center', whiteSpace: 'nowrap', maxWidth: '140px' }}
-                      >
-                        <option value="despesa">Despesa</option>
-                        <option value="receita">Receita</option>
-                        <option value="transferencia">Transferência</option>
-                      </select>
+                        style={{ padding: '6px 28px 6px 12px', borderRadius: 8, border: '1px solid var(--sm-border)', background: 'var(--sm-bg)', color: 'var(--sm-text)', fontSize: 13, transition: 'all 0.2s', outline: 'none', cursor: 'pointer', appearance: 'none', backgroundImage: `url('data:image/svg+xml;utf8,<svg fill="%23888" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/></svg>')`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 2px center' }}
+                        options={[
+                          { value: 'despesa', label: 'Despesa' },
+                          { value: 'receita', label: 'Receita' },
+                          { value: 'transferencia', label: 'Transferência' }
+                        ]}
+                      />
                     </td>
                     <td style={{ padding: '14px 16px' }}>
                       {t.tipo_transacao === 'despesa' ? (
-                        <select
+                        <DynamicSelect
                           value={t.natureza_custo || 'variavel'}
                           onChange={e => {
                             const novas = [...preview.transacoes];
                             novas[idx].natureza_custo = e.target.value;
                             setPreview({ ...preview, transacoes: novas });
                           }}
-                          style={{ padding: '6px 28px 6px 12px', borderRadius: 8, border: '1px solid var(--sm-border)', background: 'var(--sm-bg)', color: 'var(--sm-text)', fontSize: 13, transition: 'all 0.2s', outline: 'none', cursor: 'pointer', appearance: 'none', backgroundImage: `url('data:image/svg+xml;utf8,<svg fill="%23888" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/></svg>')`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 2px center', whiteSpace: 'nowrap', maxWidth: '120px' }}
-                        >
-                          <option value="fixo">Fixo</option>
-                          <option value="variavel">Variável</option>
-                        </select>
+                          style={{ padding: '6px 28px 6px 12px', borderRadius: 8, border: '1px solid var(--sm-border)', background: 'var(--sm-bg)', color: 'var(--sm-text)', fontSize: 13, transition: 'all 0.2s', outline: 'none', cursor: 'pointer', appearance: 'none', backgroundImage: `url('data:image/svg+xml;utf8,<svg fill="%23888" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/></svg>')`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 2px center' }}
+                          options={[
+                            { value: 'fixo', label: 'Fixo' },
+                            { value: 'variavel', label: 'Variável' }
+                          ]}
+                        />
                       ) : <span style={{color:'var(--sm-text-faint)', padding: '0 12px'}}>-</span>}
                     </td>
                     <td style={{ padding: '14px 16px' }}>
-                      <select
+                      <DynamicSelect
                         value={t.categoria}
                         onChange={e => {
                           const novas = [...preview.transacoes];
                           novas[idx].categoria = e.target.value;
                           setPreview({ ...preview, transacoes: novas });
                         }}
-                        style={{ padding: '6px 28px 6px 12px', borderRadius: 8, border: '1px solid var(--sm-border)', background: 'var(--sm-bg)', color: 'var(--sm-text)', fontSize: 13, transition: 'all 0.2s', outline: 'none', cursor: 'pointer', appearance: 'none', backgroundImage: `url('data:image/svg+xml;utf8,<svg fill="%23888" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/></svg>')`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 2px center', whiteSpace: 'nowrap', maxWidth: '150px', textOverflow: 'ellipsis', overflow: 'hidden' }}
-                      >
-                        {[...new Set([...CONTA_CATEGORIAS, ...RECEITA_CATEGORIAS])].map(c => <option key={c} value={c}>{c}</option>)}
-                      </select>
+                        style={{ padding: '6px 28px 6px 12px', borderRadius: 8, border: '1px solid var(--sm-border)', background: 'var(--sm-bg)', color: 'var(--sm-text)', fontSize: 13, transition: 'all 0.2s', outline: 'none', cursor: 'pointer', appearance: 'none', backgroundImage: `url('data:image/svg+xml;utf8,<svg fill="%23888" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/></svg>')`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 2px center' }}
+                        options={[...new Set([...CONTA_CATEGORIAS, ...RECEITA_CATEGORIAS])].map(c => ({ value: c, label: c }))}
+                      />
                     </td>
                     <td style={{ padding: '14px 16px' }}>
                       {cartoes && cartoes.length > 0 ? (
-                        <select
+                        <DynamicSelect
                           value={t.cartao_id || ''}
                           onChange={e => {
                             const novas = [...preview.transacoes];
                             novas[idx].cartao_id = e.target.value || null;
                             setPreview({ ...preview, transacoes: novas });
                           }}
-                          style={{ padding: '6px 28px 6px 12px', borderRadius: 8, border: '1px solid var(--sm-border)', background: 'var(--sm-bg)', color: 'var(--sm-text)', fontSize: 13, transition: 'all 0.2s', outline: 'none', cursor: 'pointer', appearance: 'none', backgroundImage: `url('data:image/svg+xml;utf8,<svg fill="%23888" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/></svg>')`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 2px center', whiteSpace: 'nowrap', maxWidth: '160px' }}
-                        >
-                          <option value="">Nenhum</option>
-                          {cartoes.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
-                        </select>
+                          style={{ padding: '6px 28px 6px 12px', borderRadius: 8, border: '1px solid var(--sm-border)', background: 'var(--sm-bg)', color: 'var(--sm-text)', fontSize: 13, transition: 'all 0.2s', outline: 'none', cursor: 'pointer', appearance: 'none', backgroundImage: `url('data:image/svg+xml;utf8,<svg fill="%23888" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/></svg>')`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 2px center' }}
+                          options={[
+                            { value: '', label: 'Nenhum' },
+                            ...cartoes.map(c => ({ value: c.id, label: c.nome }))
+                          ]}
+                        />
                       ) : <span style={{color:'var(--sm-text-faint)', padding: '0 12px'}}>Nenhum</span>}
                     </td>
                     <td style={{ padding: '14px 16px', textAlign: 'right', fontSize: 14, color: 'var(--sm-text)', fontWeight: 600, whiteSpace: 'nowrap' }}>
