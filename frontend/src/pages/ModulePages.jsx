@@ -722,7 +722,10 @@ function ImportExtratoForm({ familia, cartoes, contasExistentes, onImport, onClo
       });
 
       const json = await res.json();
-      if (!res.ok) throw new Error(json.erro || json.detalhe || 'Erro na importação');
+      if (!res.ok) {
+        const errorMsg = json.detalhe ? `${json.erro} - ${json.detalhe}` : json.erro;
+        throw new Error(errorMsg || 'Erro na importação');
+      }
 
       setPreview({
         importado: json.importado,

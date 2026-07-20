@@ -27,10 +27,16 @@ export default async function handler(req, res) {
   try {
     // 1. Extrair usuário do token JWT
     const token = req.headers.authorization?.replace('Bearer ', '');
-    if (!token) return res.status(401).json({ erro: 'Não autenticado' });
+    if (!token || token === 'undefined') return res.status(401).json({ erro: 'Não autenticado (token ausente ou undefined)' });
 
     const { data: userData, error: authError } = await supabase.auth.getUser(token);
-    if (authError || !userData.user) return res.status(401).json({ erro: 'Token inválido' });
+    if (authError || !userData?.user) {
+      return res.status(401).json({ 
+        erro: 'Token inválido', 
+        detalhe: authError?.message || 'Usuário não encontrado',
+        url: process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL ? 'URL OK' : 'URL MISSING'
+      });
+    }
     const usuarioId = userData.user.id;
 
     // Buscar o household_id
