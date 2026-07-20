@@ -903,7 +903,7 @@ function ImportExtratoForm({ familia, cartoes, contasExistentes, onImport, onClo
                           novas[idx].categoria = e.target.value;
                           setPreview({ ...preview, transacoes: novas });
                         }}
-                        style={{ padding: '6px 28px 6px 12px', borderRadius: 8, border: '1px solid var(--sm-border)', background: 'var(--sm-bg)', color: 'var(--sm-text)', fontSize: 13, transition: 'all 0.2s', outline: 'none', cursor: 'pointer', appearance: 'none', backgroundImage: `url('data:image/svg+xml;utf8,<svg fill="%23888" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/></svg>')`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 2px center', whiteSpace: 'nowrap', maxWidth: '240px' }}
+                        style={{ padding: '6px 28px 6px 12px', borderRadius: 8, border: '1px solid var(--sm-border)', background: 'var(--sm-bg)', color: 'var(--sm-text)', fontSize: 13, transition: 'all 0.2s', outline: 'none', cursor: 'pointer', appearance: 'none', backgroundImage: `url('data:image/svg+xml;utf8,<svg fill="%23888" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/></svg>')`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 2px center', whiteSpace: 'nowrap', maxWidth: '150px', textOverflow: 'ellipsis', overflow: 'hidden' }}
                       >
                         {[...new Set([...CONTA_CATEGORIAS, ...RECEITA_CATEGORIAS])].map(c => <option key={c} value={c}>{c}</option>)}
                       </select>
