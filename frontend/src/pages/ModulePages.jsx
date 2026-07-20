@@ -350,7 +350,7 @@ export function ContasPage() {
         </Modal>
       )}
       {importModalOpen && (
-        <Modal title="Importar Extrato Bancário" onClose={() => setImportModalOpen(false)} width={980}>
+        <Modal title="Importar Extrato Bancário" onClose={() => setImportModalOpen(false)} width={1400}>
           <ImportExtratoForm
             familia={familia}
             contasExistentes={contas}
@@ -838,7 +838,7 @@ function ImportExtratoForm({ familia, cartoes, contasExistentes, onImport, onClo
             </p>
           </div>
           
-          <div style={{ maxHeight: 400, overflowY: 'auto', border: '1px solid var(--sm-border)', borderRadius: 8 }}>
+          <div style={{ maxHeight: 600, overflowY: 'auto', border: '1px solid var(--sm-border)', borderRadius: 8 }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ background: 'var(--sm-surface)', borderBottom: '1px solid var(--sm-border)' }}>
