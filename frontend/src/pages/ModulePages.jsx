@@ -108,6 +108,7 @@ export function ContasPage() {
 
   const lista = [...contasFiltradasPorPeriodo].filter(c => {
     if (busca && !c.descricao.toLowerCase().includes(busca.toLowerCase())) return false;
+    if (filtro === 'revisao') return c.categoria_confirmada === false;
     return filtro === 'todas' || statusOf(c) === filtro;
   }).sort((a,b) => new Date(a.vencimento)-new Date(b.vencimento));
 
@@ -271,8 +272,8 @@ export function ContasPage() {
           <Search size={16} style={{ position:'absolute', left:12, top:12, color:'var(--sm-text-faint)' }}/>
           <Input placeholder="Buscar conta..." value={busca} onChange={e=>setBusca(e.target.value)} style={{ paddingLeft:36 }}/>
         </div>
-        {['todas','vencida','proxima','pendente','paga'].map(f=>(
-          <button key={f} onClick={()=>setFiltro(f)} style={{ padding:'8px 14px', borderRadius:999, fontSize:13, fontWeight:600, border:'1px solid var(--sm-border)', background:filtro===f?'var(--sm-red)':'transparent', color:filtro===f?'#fff':'var(--sm-text-soft)', cursor:'pointer' }}>{f==='todas'?'Todas':STATUS_INFO[f].l}</button>
+        {['todas','revisao','vencida','proxima','pendente','paga'].map(f=>(
+          <button key={f} onClick={()=>setFiltro(f)} style={{ padding:'8px 14px', borderRadius:999, fontSize:13, fontWeight:600, border:'1px solid var(--sm-border)', background:filtro===f?'var(--sm-red)':'transparent', color:filtro===f?'#fff':'var(--sm-text-soft)', cursor:'pointer' }}>{f==='todas'?'Todas':f==='revisao'?'⚠️ Revisar':STATUS_INFO[f].l}</button>
         ))}
       </div>
       {lista.length===0 ? <EmptyState icon={Receipt} title="Nenhuma conta encontrada"/> : (
@@ -289,12 +290,15 @@ export function ContasPage() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     <div style={{ fontWeight:600, fontSize:14.5, textDecoration:c.status==='paga'?'line-through':'none', color:c.status==='paga'?'var(--sm-text-faint)':'var(--sm-text)' }}>{c.descricao}</div>
                     {isIndividual && <Badge tone="neutral" style={{ fontSize: 10 }}>Individual</Badge>}
+                    {c.categoria_confirmada === false && <Badge tone="amber" style={{ fontSize: 10 }}>⚠️ IA Sugeriu</Badge>}
                   </div>
                   <div style={{ fontSize:12.5, color:'var(--sm-text-soft)', marginTop:2 }}>{c.categoria} · {c.forma||'—'} · {c.responsavel||'—'}</div>
                 </div>
                 <Badge tone={STATUS_INFO[st].t}>{STATUS_INFO[st].l}</Badge>
                 <div style={{ textAlign:'right', minWidth:90 }}>
-                  <div style={{ fontWeight:700, fontFamily:'Outfit', fontSize:15 }}>{fmtMoney(c.valor)}</div>
+                  <div style={{ fontWeight:700, fontFamily:'Outfit', fontSize:15, color: c.tipo_transacao === 'receita' ? 'var(--sm-green)' : c.tipo_transacao === 'transferencia' ? 'var(--sm-text-soft)' : 'var(--sm-text)' }}>
+                    {c.tipo_transacao === 'receita' ? '+ ' : c.tipo_transacao === 'despesa' ? '- ' : ''}{fmtMoney(c.valor)}
+                  </div>
                   <div style={{ fontSize:12, color:'var(--sm-text-soft)' }}>{fmtDate(c.vencimento)}</div>
                 </div>
                 <div style={{ display:'flex', gap:6 }}>
@@ -698,59 +702,44 @@ function ImportExtratoForm({ familia, cartoes, contasExistentes, onImport, onClo
     setLoadingFile(true);
     setErrorFile('');
     try {
-      let parsed = [];
-      const extension = file.name.split('.').pop().toLowerCase();
-      
-      if (extension === 'csv') {
-        const text = await file.text();
-        parsed = parseCsvText(text);
-      } else if (extension === 'pdf') {
-        const text = await extractTextFromPdf(file);
-        parsed = parseStatementText(text);
-      } else {
-        throw new Error('Formato não suportado. Envie apenas arquivos PDF ou CSV.');
-      }
-      
-      if (parsed.length === 0) {
-        throw new Error('Nenhuma transação válida foi identificada no arquivo (pagamentos de fatura são ignorados automaticamente).');
-      }
+      const formData = new FormData();
+      formData.append('arquivo', file);
+      if (defaultResponsavel) formData.append('responsavel', defaultResponsavel);
+      if (defaultVisibilidade) formData.append('visibilidade', defaultVisibilidade);
+      if (defaultCartao) formData.append('cartao_id', defaultCartao);
 
-      // Check deduplication again for PDF just in case
-      const mapped = parsed.map(p => {
-        const isDuplicated = contasExistentes?.some(c => 
-          c.descricao.toLowerCase() === p.descricao.toLowerCase() &&
-          Number(c.valor) === p.valor &&
-          c.vencimento === p.vencimento
-        );
-        
-        return {
-          ...p,
-          responsavel: defaultResponsavel || (familia[0]?.nome || ''),
-          cartao_id: defaultCartao || '',
-          visibilidade: defaultVisibilidade || 'Geral',
-          selected: p.selected !== undefined ? p.selected : !isDuplicated,
-          justificativa: isDuplicated ? '⚠️ Já existe no sistema!' : p.justificativa
-        };
+      const session = await supabase.auth.getSession();
+      const token = session.data.session?.access_token;
+
+      // Chama o Vercel Serverless Function
+      const res = await fetch('/api/importar', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
       });
-      setPreview(mapped);
-      setStep(2);
+
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.erro || json.detalhe || 'Erro na importação');
+
+      setPreview({
+        importado: json.importado,
+        duplicados: json.duplicados,
+        precisa_revisao: json.precisa_revisao
+      });
+      setStep(3); // Success Screen
     } catch (err) {
-      setErrorFile(err.message || 'Erro ao ler arquivo.');
+      setErrorFile(err.message || 'Erro ao processar arquivo.');
     } finally {
       setLoadingFile(false);
     }
   };
 
   const handleConfirm = async () => {
-    const toImport = preview.filter(p => p.selected);
-    if (toImport.length === 0) return;
-    setSaving(true);
-    try {
-      await onImport(toImport);
-    } catch (e) {
-    } finally {
-      setSaving(false);
-    }
+    // Agora o "Confirmar" apenas recarrega e fecha, a inserção já foi feita
+    onImport([]); // Pass empty to trigger reload
+    onClose();
   };
 
   return (
@@ -835,128 +824,17 @@ function ImportExtratoForm({ familia, cartoes, contasExistentes, onImport, onClo
             </Btn>
           </div>
         </>
-      ) : (
-        <>
-          <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--sm-text)' }}>
-            Revisar Transações Identificadas ({preview.filter(p => p.selected).length} de {preview.length})
-          </div>
-          <div style={{ maxHeight: 350, overflowY: 'auto', border: '1px solid var(--sm-border)', borderRadius: 'var(--radius-md)', background: 'var(--sm-bg)' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
-              <thead>
-                <tr style={{ background: 'var(--sm-surface)', borderBottom: '1px solid var(--sm-border)', textAlign: 'left' }}>
-                  <th style={{ padding: 10, width: 40 }}></th>
-                  <th style={{ padding: 10 }}>Descrição</th>
-                  <th style={{ padding: 10, width: 120 }}>Vencimento</th>
-                  <th style={{ padding: 10, width: 100 }}>Valor</th>
-                  <th style={{ padding: 10, width: 160 }}>Categoria</th>
-                  <th style={{ padding: 10, width: 180 }}>Atribuições</th>
-                </tr>
-              </thead>
-              <tbody>
-                {preview.map((item, idx) => (
-                  <tr key={idx} style={{ borderBottom: '1px solid var(--sm-border)', opacity: item.selected ? 1 : 0.6 }}>
-                    <td style={{ padding: 10, textAlign: 'center' }}>
-                      <input
-                        type="checkbox"
-                        checked={item.selected}
-                        onChange={e => {
-                          const newPreview = [...preview];
-                          newPreview[idx].selected = e.target.checked;
-                          setPreview(newPreview);
-                        }}
-                      />
-                    </td>
-                    <td style={{ padding: 10 }}>
-                      <div style={{ fontWeight: 600 }}>{item.descricao}</div>
-                      <div style={{ fontSize: 11, color: 'var(--sm-text-soft)', marginTop: 2 }}>
-                        💡 {item.justificativa}
-                      </div>
-                    </td>
-                    <td style={{ padding: 10 }}>
-                      <Input
-                        type="date"
-                        value={item.vencimento}
-                        onChange={e => {
-                          const newPreview = [...preview];
-                          newPreview[idx].vencimento = e.target.value;
-                          setPreview(newPreview);
-                        }}
-                        style={{ padding: '4px 6px', fontSize: 12 }}
-                      />
-                    </td>
-                    <td style={{ padding: 10, fontWeight: 700 }}>
-                      R$ {item.valor.toFixed(2)}
-                    </td>
-                    <td style={{ padding: 10 }}>
-                      <Select
-                        value={item.categoria}
-                        onChange={e => {
-                          const newPreview = [...preview];
-                          newPreview[idx].categoria = e.target.value;
-                          setPreview(newPreview);
-                        }}
-                        style={{ padding: '4px 6px', fontSize: 12 }}
-                      >
-                        {CONTA_CATEGORIAS.map(c => <option key={c} value={c}>{c}</option>)}
-                      </Select>
-                    </td>
-                    <td style={{ padding: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                      <Select
-                        value={item.responsavel}
-                        onChange={e => {
-                          const newPreview = [...preview];
-                          newPreview[idx].responsavel = e.target.value;
-                          setPreview(newPreview);
-                        }}
-                        style={{ padding: '4px 6px', fontSize: 11 }}
-                      >
-                        <option value="">Não definido</option>
-                        {familia.filter(m => m.status !== 'pendente').map(m => (
-                          <option key={m.id} value={m.nome}>{m.nome}</option>
-                        ))}
-                      </Select>
-                      <Select
-                        value={item.visibilidade}
-                        onChange={e => {
-                          const newPreview = [...preview];
-                          newPreview[idx].visibilidade = e.target.value;
-                          setPreview(newPreview);
-                        }}
-                        style={{ padding: '4px 6px', fontSize: 11 }}
-                      >
-                        {VISIBILIDADE_OPCOES.map(v => <option key={v} value={v}>{v}</option>)}
-                      </Select>
-                      {item.forma === 'Cartão' && cartoes && cartoes.length > 0 && (
-                        <Select
-                          value={item.cartao_id}
-                          onChange={e => {
-                            const newPreview = [...preview];
-                            newPreview[idx].cartao_id = e.target.value;
-                            setPreview(newPreview);
-                          }}
-                          style={{ padding: '4px 6px', fontSize: 11 }}
-                        >
-                          <option value="">Nenhum cartão</option>
-                          {cartoes.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
-                        </Select>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 }}>
-            <Btn variant="secondary" onClick={() => setStep(1)}>Voltar</Btn>
-            <div style={{ display: 'flex', gap: 10 }}>
-              <Btn variant="secondary" onClick={onClose}>Cancelar</Btn>
-              <Btn onClick={handleConfirm} disabled={saving || preview.filter(p => p.selected).length === 0}>
-                {saving ? 'Importando...' : `Confirmar Importação (${preview.filter(p => p.selected).length} contas)`}
-              </Btn>
-            </div>
-          </div>
-        </>
-      )}
+      ) : step === 3 ? (
+        <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+          <h3 style={{ fontSize: 20, marginBottom: 8, color: 'var(--sm-text)' }}>Importação Concluída!</h3>
+          <p style={{ color: 'var(--sm-text-soft)', marginBottom: 24, fontSize: 14 }}>
+            Sincronizamos seu extrato com sucesso.<br/>
+            <strong>{preview.importado}</strong> novas transações foram adicionadas.<br/>
+            {preview.duplicados > 0 && <span style={{ color: 'var(--sm-text-faint)' }}>({preview.duplicados} transações duplicadas foram ignoradas)</span>}
+          </p>
+          <Btn onClick={handleConfirm}>Voltar para Contas</Btn>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -1080,18 +958,33 @@ function ContaForm({ conta, cartoes, familia, saving, onSave, onClose }) {
     descricao: conta.descricao, categoria: conta.categoria, valor: conta.valor, 
     vencimento: conta.vencimento, responsavel: conta.responsavel || '', 
     forma: conta.forma || 'Boleto', status: conta.status, 
-    cartao_id: conta.cartao_id || '', visibilidade: conta.visibilidade || 'Geral' 
+    cartao_id: conta.cartao_id || '', visibilidade: conta.visibilidade || 'Geral',
+    tipo_transacao: conta.tipo_transacao || 'despesa',
+    natureza_custo: conta.natureza_custo || 'variavel'
   } : { 
     descricao: '', categoria: CONTA_CATEGORIAS[0], valor: '', vencimento: addDays(7), 
     responsavel: familia[0]?.nome || '', forma: 'Boleto', status: 'pendente', 
-    cartao_id: '', visibilidade: 'Geral' 
+    cartao_id: '', visibilidade: 'Geral',
+    tipo_transacao: 'despesa', natureza_custo: 'variavel'
   });
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   return (
-    <form onSubmit={e => { e.preventDefault(); onSave({ ...form, valor: Number(form.valor) }); }} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+    <form onSubmit={e => { e.preventDefault(); onSave({ ...form, valor: Number(form.valor), natureza_custo: form.tipo_transacao === 'receita' ? null : form.natureza_custo }); }} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={{ display: 'flex', gap: 10 }}>
+        <button type="button" onClick={() => setForm(f => ({ ...f, tipo_transacao: 'receita', categoria: RECEITA_CATEGORIAS[0] }))} style={{ flex: 1, padding: 12, borderRadius: 8, border: '1px solid var(--sm-border)', background: form.tipo_transacao === 'receita' ? 'var(--sm-green)' : 'var(--sm-surface)', color: form.tipo_transacao === 'receita' ? '#fff' : 'var(--sm-text)', fontWeight: 600, cursor: 'pointer' }}>📈 Receita</button>
+        <button type="button" onClick={() => setForm(f => ({ ...f, tipo_transacao: 'despesa', categoria: CONTA_CATEGORIAS[0] }))} style={{ flex: 1, padding: 12, borderRadius: 8, border: '1px solid var(--sm-border)', background: form.tipo_transacao === 'despesa' ? 'var(--sm-red)' : 'var(--sm-surface)', color: form.tipo_transacao === 'despesa' ? '#fff' : 'var(--sm-text)', fontWeight: 600, cursor: 'pointer' }}>📉 Despesa</button>
+      </div>
+      
+      {form.tipo_transacao === 'despesa' && (
+        <div style={{ display: 'flex', gap: 10, marginBottom: 4 }}>
+          <button type="button" onClick={() => set('natureza_custo', 'fixo')} style={{ flex: 1, padding: 8, borderRadius: 8, border: '1px solid var(--sm-border)', background: form.natureza_custo === 'fixo' ? 'var(--sm-text)' : 'transparent', color: form.natureza_custo === 'fixo' ? 'var(--sm-bg)' : 'var(--sm-text-soft)', fontSize: 13, cursor: 'pointer' }}>Custo Fixo</button>
+          <button type="button" onClick={() => set('natureza_custo', 'variavel')} style={{ flex: 1, padding: 8, borderRadius: 8, border: '1px solid var(--sm-border)', background: form.natureza_custo === 'variavel' ? 'var(--sm-text)' : 'transparent', color: form.natureza_custo === 'variavel' ? 'var(--sm-bg)' : 'var(--sm-text-soft)', fontSize: 13, cursor: 'pointer' }}>Custo Variável</button>
+        </div>
+      )}
+
       <Field label="Descrição"><Input required value={form.descricao} onChange={e => set('descricao', e.target.value)} placeholder="Ex: Conta de luz" /></Field>
       <div className="grid-2">
-        <Field label="Categoria"><SelectWithCustom options={CONTA_CATEGORIAS} value={form.categoria} onChange={val => set('categoria', val)} /></Field>
+        <Field label="Categoria"><SelectWithCustom options={form.tipo_transacao === 'receita' ? RECEITA_CATEGORIAS : CONTA_CATEGORIAS} value={form.categoria} onChange={val => set('categoria', val)} /></Field>
         <Field label="Valor (R$)"><Input required type="number" step="0.01" min="0" value={form.valor} onChange={e => set('valor', e.target.value)} /></Field>
       </div>
       <div className="grid-2">
@@ -1361,7 +1254,6 @@ export function ComprasPage() {
                 <button onClick={savePlanejada} style={{ background:'var(--sm-red)', color: '#fff', border:'none', borderRadius: 6, padding: '4px 8px', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>Definir</button>
               </div>
             </div>
-        </div>
         {pendentes.length===0 ? <EmptyState icon={ShoppingCart} title="Lista vazia" subtitle="Tudo comprado!"/> : <div style={{ display:'flex', flexDirection:'column', gap:6 }}>{pendentes.map(c=><CompraItem key={c.id} item={c} onToggle={toggle} onRemove={remove}/>)}</div>}
       </Card>
       {comprados.length>0 && (
@@ -1394,7 +1286,6 @@ export function ComprasPage() {
           <div style={{ fontWeight:600, fontSize:14, marginBottom:12 }}>Mercado — adicionar por categoria</div>
           <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>{MERCADO_CATEGORIAS.map(cat=><button key={cat} onClick={()=>addItem(cat,cat,'mercado')} style={{ padding:'8px 14px', borderRadius:999, fontSize:12.5, border:'1px solid var(--sm-border)', background:'var(--sm-bg)', color:'var(--sm-text)', cursor:'pointer' }}>+ {cat}</button>)}</div>
         </Card>
-      )}
       )}
         </>
       )}

@@ -54,20 +54,29 @@ export function DashboardContasView({ contas, allContas, cartoes, investimentos,
   });
 
   // Totais de Gastos
-  const totalCurrent = contasCurrent.reduce((acc, c) => acc + Number(c.valor), 0);
-  const totalPast = contasPast.reduce((acc, c) => acc + Number(c.valor), 0);
+  const despesasCurrent = contasCurrent.filter(c => c.tipo_transacao !== 'receita' && c.tipo_transacao !== 'transferencia');
+  const receitasCurrent = contasCurrent.filter(c => c.tipo_transacao === 'receita');
   
-  const diffPercent = totalPast > 0 ? ((totalCurrent - totalPast) / totalPast) * 100 : (totalCurrent > 0 ? 100 : 0);
+  const totalDespesas = despesasCurrent.reduce((acc, c) => acc + Number(c.valor), 0);
+  const totalFixo = despesasCurrent.filter(c => c.natureza_custo === 'fixo').reduce((acc, c) => acc + Number(c.valor), 0);
+  const totalVariavel = despesasCurrent.filter(c => c.natureza_custo !== 'fixo').reduce((acc, c) => acc + Number(c.valor), 0);
+  const totalReceitas = receitasCurrent.reduce((acc, c) => acc + Number(c.valor), 0);
+  const saldoLiquido = totalReceitas - totalDespesas;
+  
+  const despesasPast = contasPast.filter(c => c.tipo_transacao !== 'receita' && c.tipo_transacao !== 'transferencia');
+  const totalPast = despesasPast.reduce((acc, c) => acc + Number(c.valor), 0);
+  
+  const diffPercent = totalPast > 0 ? ((totalDespesas - totalPast) / totalPast) * 100 : (totalDespesas > 0 ? 100 : 0);
   const isUp = diffPercent > 0;
 
-  // Gastos por Categoria (Current vs Past)
+  // Gastos por Categoria (Current vs Past) - Apenas Despesas
   const categoryCurrent = {};
-  contasCurrent.forEach(c => {
+  despesasCurrent.forEach(c => {
     categoryCurrent[c.categoria] = (categoryCurrent[c.categoria] || 0) + Number(c.valor);
   });
   
   const categoryPast = {};
-  contasPast.forEach(c => {
+  despesasPast.forEach(c => {
     categoryPast[c.categoria] = (categoryPast[c.categoria] || 0) + Number(c.valor);
   });
 
@@ -112,40 +121,46 @@ export function DashboardContasView({ contas, allContas, cartoes, investimentos,
 
       {/* Cards de Topo */}
       <div className="grid-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
-        <Card style={{ padding: 16 }}>
+        <Card style={{ padding: 16, borderLeft: '4px solid var(--sm-green)' }}>
           <div style={{ fontSize: 12, color: 'var(--sm-text-soft)', fontWeight: 600, marginBottom: 4, textTransform: 'uppercase' }}>
-            Despesas no Período
+            Receitas
           </div>
           <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--sm-text)' }}>
-            {fmtMoney(totalCurrent)}
+            {fmtMoney(totalReceitas)}
           </div>
-          <div style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 4, marginTop: 6, color: isUp ? 'var(--sm-red)' : 'var(--sm-green)', fontWeight: 500 }}>
-            {isUp ? <TrendingUp size={14}/> : <TrendingDown size={14}/>}
-            {Math.abs(diffPercent).toFixed(1)}% vs anterior ({fmtMoney(totalPast)})
+        </Card>
+        
+        <Card style={{ padding: 16, borderLeft: '4px solid var(--sm-red)' }}>
+          <div style={{ fontSize: 12, color: 'var(--sm-text-soft)', fontWeight: 600, marginBottom: 4, textTransform: 'uppercase' }}>
+            Despesas Totais
+          </div>
+          <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--sm-text)' }}>
+            {fmtMoney(totalDespesas)}
+          </div>
+          <div style={{ fontSize: 12, display: 'flex', gap: 10, marginTop: 6, color: 'var(--sm-text-soft)', fontWeight: 500 }}>
+            <span>Fixo: {fmtMoney(totalFixo)}</span>
+            <span>Var: {fmtMoney(totalVariavel)}</span>
+          </div>
+        </Card>
+
+        <Card style={{ padding: 16, borderLeft: saldoLiquido >= 0 ? '4px solid var(--sm-green)' : '4px solid var(--sm-red)' }}>
+          <div style={{ fontSize: 12, color: 'var(--sm-text-soft)', fontWeight: 600, marginBottom: 4, textTransform: 'uppercase' }}>
+            Saldo Líquido
+          </div>
+          <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--sm-text)' }}>
+            {fmtMoney(saldoLiquido)}
           </div>
         </Card>
 
         <Card style={{ padding: 16 }}>
           <div style={{ fontSize: 12, color: 'var(--sm-text-soft)', fontWeight: 600, marginBottom: 4, textTransform: 'uppercase' }}>
-            Limites de Cartão (Total)
+            Limites de Cartão
           </div>
           <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--sm-text)' }}>
             {fmtMoney(limiteTotal)}
           </div>
           <div style={{ fontSize: 13, marginTop: 6, color: 'var(--sm-text-soft)' }}>
-            Disponível geral: <strong>{fmtMoney(limiteDisponivel)}</strong>
-          </div>
-        </Card>
-
-        <Card style={{ padding: 16 }}>
-          <div style={{ fontSize: 12, color: 'var(--sm-text-soft)', fontWeight: 600, marginBottom: 4, textTransform: 'uppercase' }}>
-            Patrimônio (Investido)
-          </div>
-          <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--sm-text)' }}>
-            {fmtMoney(totalInvestido)}
-          </div>
-          <div style={{ fontSize: 13, marginTop: 6, color: 'var(--sm-text-soft)' }}>
-            Caixinhas: <strong>{fmtMoney(totalCaixinhas)}</strong>
+            Disponível: <strong>{fmtMoney(limiteDisponivel)}</strong>
           </div>
         </Card>
       </div>
