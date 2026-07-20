@@ -982,7 +982,7 @@ function ContaForm({ conta, cartoes, familia, saving, onSave, onClose }) {
         </div>
       )}
 
-      <Field label="Descrição"><Input required value={form.descricao} onChange={e => set('descricao', e.target.value)} placeholder="Ex: Conta de luz" /></Field>
+      <Field label="Descrição"><Input required value={form.descricao} onChange={e => set('descricao', e.target.value)} placeholder={form.tipo_transacao === 'receita' ? 'Ex: Salário do mês' : 'Ex: Conta de luz'} /></Field>
       <div className="grid-2">
         <Field label="Categoria"><SelectWithCustom options={form.tipo_transacao === 'receita' ? RECEITA_CATEGORIAS : CONTA_CATEGORIAS} value={form.categoria} onChange={val => set('categoria', val)} /></Field>
         <Field label="Valor (R$)"><Input required type="number" step="0.01" min="0" value={form.valor} onChange={e => set('valor', e.target.value)} /></Field>
@@ -991,7 +991,7 @@ function ContaForm({ conta, cartoes, familia, saving, onSave, onClose }) {
         <Field label={form.tipo_transacao === 'receita' ? 'Data de Recebimento' : 'Vencimento'}><Input required type="date" value={form.vencimento} onChange={e => set('vencimento', e.target.value)} /></Field>
         <Field label={form.tipo_transacao === 'receita' ? 'Forma de Recebimento' : 'Forma de Pagamento'}>
           <Select value={form.forma} onChange={e => { set('forma', e.target.value); if (e.target.value !== 'Cartão') set('cartao_id', ''); }}>
-            {['Boleto', 'Débito automático', 'Cartão', 'Pix', 'Dinheiro'].map(f => <option key={f}>{f}</option>)}
+            {['Boleto', 'Débito automático', 'Cartão', 'Pix', 'Dinheiro', 'Transferência Bancária'].map(f => <option key={f}>{f}</option>)}
           </Select>
         </Field>
       </div>
