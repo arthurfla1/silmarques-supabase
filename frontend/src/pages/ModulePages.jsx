@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Plus, Edit2, Trash2, Search, CheckCircle2, Circle, DollarSign, Clock, AlertTriangle, Package, ShoppingCart, Apple, Check, Sparkles, Car, Wrench, Shield, FileText, Award, Users, Phone, Mail, BarChart3, Download, MapPin, Receipt, Link as LinkIcon, CreditCard, PieChart as PieChartIcon } from 'lucide-react';
 import { contasApi, cartoesApi, investimentosApi, estoqueApi, comprasApi, limpezaApi, veiculosApi, documentosApi, patrimonioApi, authApi, dashboardApi } from '../api/db';
 import { supabase } from '../lib/supabase';
+import { processarExtratoCSV } from '../lib/importer';
 import { useApiList } from '../hooks/useApiList';
 import { useFamilia } from '../context/contexts';
 import { useAuth } from '../context/AuthContext';
@@ -703,29 +704,7 @@ function ImportExtratoForm({ familia, cartoes, contasExistentes, onImport, onClo
     setLoadingFile(true);
     setErrorFile('');
     try {
-      const formData = new FormData();
-      formData.append('arquivo', file);
-      if (defaultResponsavel) formData.append('responsavel', defaultResponsavel);
-      if (defaultVisibilidade) formData.append('visibilidade', defaultVisibilidade);
-      if (defaultCartao) formData.append('cartao_id', defaultCartao);
-
-      const session = await supabase.auth.getSession();
-      const token = session.data.session?.access_token;
-
-      // Chama o Vercel Serverless Function
-      const res = await fetch('/api/importar', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
-        body: formData
-      });
-
-      const json = await res.json();
-      if (!res.ok) {
-        const errorMsg = json.detalhe ? `${json.erro} - ${json.detalhe}` : json.erro;
-        throw new Error(errorMsg || 'Erro na importação');
-      }
+      const json = await processarExtratoCSV(file, familia[0]?.household_id, defaultResponsavel, defaultVisibilidade, defaultCartao);
 
       setPreview({
         importado: json.importado,
