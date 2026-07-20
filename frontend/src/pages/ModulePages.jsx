@@ -350,7 +350,7 @@ export function ContasPage() {
         </Modal>
       )}
       {importModalOpen && (
-        <Modal title="Importar Extrato Bancário" onClose={() => setImportModalOpen(false)} width={780}>
+        <Modal title="Importar Extrato Bancário" onClose={() => setImportModalOpen(false)} width={980}>
           <ImportExtratoForm
             familia={familia}
             contasExistentes={contas}
