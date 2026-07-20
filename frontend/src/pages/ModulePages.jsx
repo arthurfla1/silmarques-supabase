@@ -565,7 +565,8 @@ const DynamicSelect = ({ value, onChange, options, style }) => {
         visibility: 'hidden', 
         whiteSpace: 'nowrap',
         fontSize: style.fontSize || 13,
-        padding: style.padding || '6px 28px 6px 12px'
+        padding: style.padding || '6px 28px 6px 12px',
+        paddingRight: 44 // Adds extra right padding so the arrow icon doesn't overlap text
       }}>
         {selectedLabel}
       </span>
