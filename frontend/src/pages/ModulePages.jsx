@@ -844,6 +844,8 @@ function ImportExtratoForm({ familia, cartoes, contasExistentes, onImport, onClo
                 <tr style={{ background: 'var(--sm-surface)', borderBottom: '1px solid var(--sm-border)' }}>
                   <th style={{ padding: 12, textAlign: 'left', color: 'var(--sm-text-soft)', fontSize: 13, fontWeight: 600 }}>Data</th>
                   <th style={{ padding: 12, textAlign: 'left', color: 'var(--sm-text-soft)', fontSize: 13, fontWeight: 600 }}>Descrição</th>
+                  <th style={{ padding: 12, textAlign: 'left', color: 'var(--sm-text-soft)', fontSize: 13, fontWeight: 600 }}>Tipo</th>
+                  <th style={{ padding: 12, textAlign: 'left', color: 'var(--sm-text-soft)', fontSize: 13, fontWeight: 600 }}>Natureza</th>
                   <th style={{ padding: 12, textAlign: 'left', color: 'var(--sm-text-soft)', fontSize: 13, fontWeight: 600 }}>Categoria (IA)</th>
                   <th style={{ padding: 12, textAlign: 'left', color: 'var(--sm-text-soft)', fontSize: 13, fontWeight: 600 }}>Responsável</th>
                   <th style={{ padding: 12, textAlign: 'left', color: 'var(--sm-text-soft)', fontSize: 13, fontWeight: 600 }}>Visibilidade</th>
@@ -859,13 +861,45 @@ function ImportExtratoForm({ familia, cartoes, contasExistentes, onImport, onClo
                     <td style={{ padding: 12, fontSize: 14, color: 'var(--sm-text)' }}>{t.descricao}</td>
                     <td style={{ padding: 12 }}>
                       <select
+                        value={t.tipo_transacao || 'despesa'}
+                        onChange={e => {
+                          const novas = [...preview.transacoes];
+                          novas[idx].tipo_transacao = e.target.value;
+                          if (e.target.value !== 'despesa') novas[idx].natureza_custo = null;
+                          setPreview({ ...preview, transacoes: novas });
+                        }}
+                        style={{ padding: '6px 8px', borderRadius: 6, border: '1px solid var(--sm-border)', background: 'var(--sm-bg)', color: 'var(--sm-text)', width: '100%', minWidth: 90 }}
+                      >
+                        <option value="despesa">Despesa</option>
+                        <option value="receita">Receita</option>
+                        <option value="transferencia">Transferência</option>
+                      </select>
+                    </td>
+                    <td style={{ padding: 12 }}>
+                      {t.tipo_transacao === 'despesa' ? (
+                        <select
+                          value={t.natureza_custo || 'variavel'}
+                          onChange={e => {
+                            const novas = [...preview.transacoes];
+                            novas[idx].natureza_custo = e.target.value;
+                            setPreview({ ...preview, transacoes: novas });
+                          }}
+                          style={{ padding: '6px 8px', borderRadius: 6, border: '1px solid var(--sm-border)', background: 'var(--sm-bg)', color: 'var(--sm-text)', width: '100%', minWidth: 90 }}
+                        >
+                          <option value="fixo">Fixo</option>
+                          <option value="variavel">Variável</option>
+                        </select>
+                      ) : <span style={{color:'var(--sm-text-faint)'}}>-</span>}
+                    </td>
+                    <td style={{ padding: 12 }}>
+                      <select
                         value={t.categoria}
                         onChange={e => {
                           const novas = [...preview.transacoes];
                           novas[idx].categoria = e.target.value;
                           setPreview({ ...preview, transacoes: novas });
                         }}
-                        style={{ padding: '6px 8px', borderRadius: 6, border: '1px solid var(--sm-border)', background: 'var(--sm-bg)', color: 'var(--sm-text)', width: '100%' }}
+                        style={{ padding: '6px 8px', borderRadius: 6, border: '1px solid var(--sm-border)', background: 'var(--sm-bg)', color: 'var(--sm-text)', width: '100%', minWidth: 100 }}
                       >
                         {[...new Set([...CONTA_CATEGORIAS, ...RECEITA_CATEGORIAS])].map(c => <option key={c} value={c}>{c}</option>)}
                       </select>
