@@ -351,7 +351,7 @@ export function ContasPage() {
         </Modal>
       )}
       {importModalOpen && (
-        <Modal title="Importar Extrato Bancário" onClose={() => setImportModalOpen(false)} width={importModalStep === 1 ? 780 : importModalStep === 2 ? 1400 : 520}>
+        <Modal title="Importar Extrato Bancário" onClose={() => setImportModalOpen(false)} width={importModalStep === 1 ? 780 : importModalStep === 2 ? 1160 : 520}>
           <ImportExtratoForm
             onStepChange={setImportModalStep}
             familia={familia}
@@ -848,14 +848,14 @@ function ImportExtratoForm({ familia, cartoes, contasExistentes, onImport, onClo
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ background: 'var(--sm-surface)', borderBottom: '1px solid var(--sm-border)' }}>
-                  <th style={{ padding: '14px 16px', textAlign: 'left', color: 'var(--sm-text-soft)', fontSize: 13, fontWeight: 600, width: 90 }}>Data</th>
-                  <th style={{ padding: '14px 16px', textAlign: 'left', color: 'var(--sm-text-soft)', fontSize: 13, fontWeight: 600 }}>Descrição</th>
-                  <th style={{ padding: '14px 16px', textAlign: 'left', color: 'var(--sm-text-soft)', fontSize: 13, fontWeight: 600, width: 130 }}>Tipo</th>
-                  <th style={{ padding: '14px 16px', textAlign: 'left', color: 'var(--sm-text-soft)', fontSize: 13, fontWeight: 600, width: 110 }}>Natureza</th>
-                  <th style={{ padding: '14px 16px', textAlign: 'left', color: 'var(--sm-text-soft)', fontSize: 13, fontWeight: 600, width: 220 }}>Categoria (IA)</th>
-                  <th style={{ padding: '14px 16px', textAlign: 'left', color: 'var(--sm-text-soft)', fontSize: 13, fontWeight: 600, width: 150 }}>Cartão</th>
-                  <th style={{ padding: '14px 16px', textAlign: 'right', color: 'var(--sm-text-soft)', fontSize: 13, fontWeight: 600, width: 120 }}>Valor</th>
-                  <th style={{ padding: '14px 16px', textAlign: 'center', color: 'var(--sm-text-soft)', fontSize: 13, fontWeight: 600, width: 60 }}>Del</th>
+                  <th style={{ padding: '14px 16px', textAlign: 'left', color: 'var(--sm-text-soft)', fontSize: 13, fontWeight: 600, width: 90, whiteSpace: 'nowrap' }}>Data</th>
+                  <th style={{ padding: '14px 16px', textAlign: 'left', color: 'var(--sm-text-soft)', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' }}>Descrição</th>
+                  <th style={{ padding: '14px 16px', textAlign: 'left', color: 'var(--sm-text-soft)', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' }}>Tipo</th>
+                  <th style={{ padding: '14px 16px', textAlign: 'left', color: 'var(--sm-text-soft)', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' }}>Natureza</th>
+                  <th style={{ padding: '14px 16px', textAlign: 'left', color: 'var(--sm-text-soft)', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' }}>Categoria (IA)</th>
+                  <th style={{ padding: '14px 16px', textAlign: 'left', color: 'var(--sm-text-soft)', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' }}>Cartão</th>
+                  <th style={{ padding: '14px 16px', textAlign: 'right', color: 'var(--sm-text-soft)', fontSize: 13, fontWeight: 600, width: 110, whiteSpace: 'nowrap' }}>Valor</th>
+                  <th style={{ padding: '14px 16px', textAlign: 'center', color: 'var(--sm-text-soft)', fontSize: 13, fontWeight: 600, width: 50, whiteSpace: 'nowrap' }}>Del</th>
                 </tr>
               </thead>
               <tbody>
@@ -872,7 +872,7 @@ function ImportExtratoForm({ familia, cartoes, contasExistentes, onImport, onClo
                           if (e.target.value !== 'despesa') novas[idx].natureza_custo = null;
                           setPreview({ ...preview, transacoes: novas });
                         }}
-                        style={{ padding: '8px 10px', borderRadius: 6, border: '1px solid var(--sm-border)', background: 'var(--sm-surface)', color: 'var(--sm-text)', width: '100%', fontSize: 13, transition: 'all 0.2s', outline: 'none' }}
+                        style={{ padding: '6px 28px 6px 12px', borderRadius: 8, border: '1px solid var(--sm-border)', background: 'var(--sm-bg)', color: 'var(--sm-text)', fontSize: 13, transition: 'all 0.2s', outline: 'none', cursor: 'pointer', appearance: 'none', backgroundImage: `url('data:image/svg+xml;utf8,<svg fill="%23888" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/></svg>')`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 2px center', whiteSpace: 'nowrap', maxWidth: '140px' }}
                       >
                         <option value="despesa">Despesa</option>
                         <option value="receita">Receita</option>
@@ -888,12 +888,12 @@ function ImportExtratoForm({ familia, cartoes, contasExistentes, onImport, onClo
                             novas[idx].natureza_custo = e.target.value;
                             setPreview({ ...preview, transacoes: novas });
                           }}
-                          style={{ padding: '8px 10px', borderRadius: 6, border: '1px solid var(--sm-border)', background: 'var(--sm-surface)', color: 'var(--sm-text)', width: '100%', fontSize: 13, transition: 'all 0.2s', outline: 'none' }}
+                          style={{ padding: '6px 28px 6px 12px', borderRadius: 8, border: '1px solid var(--sm-border)', background: 'var(--sm-bg)', color: 'var(--sm-text)', fontSize: 13, transition: 'all 0.2s', outline: 'none', cursor: 'pointer', appearance: 'none', backgroundImage: `url('data:image/svg+xml;utf8,<svg fill="%23888" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/></svg>')`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 2px center', whiteSpace: 'nowrap', maxWidth: '120px' }}
                         >
                           <option value="fixo">Fixo</option>
                           <option value="variavel">Variável</option>
                         </select>
-                      ) : <span style={{color:'var(--sm-text-faint)', padding: '0 8px'}}>-</span>}
+                      ) : <span style={{color:'var(--sm-text-faint)', padding: '0 12px'}}>-</span>}
                     </td>
                     <td style={{ padding: '14px 16px' }}>
                       <select
@@ -903,7 +903,7 @@ function ImportExtratoForm({ familia, cartoes, contasExistentes, onImport, onClo
                           novas[idx].categoria = e.target.value;
                           setPreview({ ...preview, transacoes: novas });
                         }}
-                        style={{ padding: '8px 10px', borderRadius: 6, border: '1px solid var(--sm-border)', background: 'var(--sm-surface)', color: 'var(--sm-text)', width: '100%', fontSize: 13, transition: 'all 0.2s', outline: 'none' }}
+                        style={{ padding: '6px 28px 6px 12px', borderRadius: 8, border: '1px solid var(--sm-border)', background: 'var(--sm-bg)', color: 'var(--sm-text)', fontSize: 13, transition: 'all 0.2s', outline: 'none', cursor: 'pointer', appearance: 'none', backgroundImage: `url('data:image/svg+xml;utf8,<svg fill="%23888" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/></svg>')`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 2px center', whiteSpace: 'nowrap', maxWidth: '240px' }}
                       >
                         {[...new Set([...CONTA_CATEGORIAS, ...RECEITA_CATEGORIAS])].map(c => <option key={c} value={c}>{c}</option>)}
                       </select>
@@ -917,12 +917,12 @@ function ImportExtratoForm({ familia, cartoes, contasExistentes, onImport, onClo
                             novas[idx].cartao_id = e.target.value || null;
                             setPreview({ ...preview, transacoes: novas });
                           }}
-                          style={{ padding: '8px 10px', borderRadius: 6, border: '1px solid var(--sm-border)', background: 'var(--sm-surface)', color: 'var(--sm-text)', width: '100%', fontSize: 13, transition: 'all 0.2s', outline: 'none' }}
+                          style={{ padding: '6px 28px 6px 12px', borderRadius: 8, border: '1px solid var(--sm-border)', background: 'var(--sm-bg)', color: 'var(--sm-text)', fontSize: 13, transition: 'all 0.2s', outline: 'none', cursor: 'pointer', appearance: 'none', backgroundImage: `url('data:image/svg+xml;utf8,<svg fill="%23888" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/></svg>')`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 2px center', whiteSpace: 'nowrap', maxWidth: '160px' }}
                         >
                           <option value="">Nenhum</option>
                           {cartoes.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
                         </select>
-                      ) : <span style={{color:'var(--sm-text-faint)', padding: '0 8px'}}>Nenhum</span>}
+                      ) : <span style={{color:'var(--sm-text-faint)', padding: '0 12px'}}>Nenhum</span>}
                     </td>
                     <td style={{ padding: '14px 16px', textAlign: 'right', fontSize: 14, color: 'var(--sm-text)', fontWeight: 600, whiteSpace: 'nowrap' }}>
                       <span style={{ color: t.tipo_transacao === 'receita' ? 'var(--sm-green)' : 'var(--sm-text)' }}>
