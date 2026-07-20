@@ -731,13 +731,18 @@ function ImportExtratoForm({ familia, cartoes, contasExistentes, onImport, onClo
     setSaving(true);
     setErrorFile('');
     try {
-      const { error } = await supabase.from('contas').insert(preview.transacoes);
+      const transacoesSelecionadas = preview.transacoes.filter(t => t.selected !== false);
+      if (transacoesSelecionadas.length === 0) {
+        throw new Error('Nenhuma transação selecionada para importação.');
+      }
+      
+      const { error } = await supabase.from('contas').insert(transacoesSelecionadas);
       if (error) throw error;
       
       if (preview.importacao_id) {
         await supabase.from('importacoes').update({
           status: 'concluido',
-          total_lancamentos: preview.transacoes.length
+          total_lancamentos: transacoesSelecionadas.length
         }).eq('id', preview.importacao_id);
       }
       
@@ -873,6 +878,17 @@ function ImportExtratoForm({ familia, cartoes, contasExistentes, onImport, onClo
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ background: 'var(--sm-surface)', borderBottom: '1px solid var(--sm-border)' }}>
+                  <th style={{ padding: '14px 16px', textAlign: 'center', width: 40 }}>
+                    <input 
+                      type="checkbox" 
+                      style={{ cursor: 'pointer', width: 16, height: 16 }}
+                      checked={preview.transacoes?.length > 0 && preview.transacoes.every(t => t.selected !== false)} 
+                      onChange={e => { 
+                        const checked = e.target.checked; 
+                        setPreview({ ...preview, transacoes: preview.transacoes.map(t => ({ ...t, selected: checked })) }); 
+                      }} 
+                    />
+                  </th>
                   <th style={{ padding: '14px 16px', textAlign: 'left', color: 'var(--sm-text-soft)', fontSize: 13, fontWeight: 600, width: 90, whiteSpace: 'nowrap' }}>Data</th>
                   <th style={{ padding: '14px 16px', textAlign: 'left', color: 'var(--sm-text-soft)', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' }}>Descrição</th>
                   <th style={{ padding: '14px 16px', textAlign: 'left', color: 'var(--sm-text-soft)', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' }}>Tipo</th>
@@ -880,12 +896,23 @@ function ImportExtratoForm({ familia, cartoes, contasExistentes, onImport, onClo
                   <th style={{ padding: '14px 16px', textAlign: 'left', color: 'var(--sm-text-soft)', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' }}>Categoria (IA)</th>
                   <th style={{ padding: '14px 16px', textAlign: 'left', color: 'var(--sm-text-soft)', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' }}>Cartão</th>
                   <th style={{ padding: '14px 16px', textAlign: 'right', color: 'var(--sm-text-soft)', fontSize: 13, fontWeight: 600, width: 110, whiteSpace: 'nowrap' }}>Valor</th>
-                  <th style={{ padding: '14px 16px', textAlign: 'center', color: 'var(--sm-text-soft)', fontSize: 13, fontWeight: 600, width: 50, whiteSpace: 'nowrap' }}>Del</th>
                 </tr>
               </thead>
               <tbody>
                 {preview.transacoes?.map((t, idx) => (
-                  <tr key={idx} style={{ borderBottom: '1px solid var(--sm-border)' }} className="table-row-hover">
+                  <tr key={idx} style={{ borderBottom: '1px solid var(--sm-border)', opacity: t.selected === false ? 0.5 : 1 }} className="table-row-hover">
+                    <td style={{ padding: '14px 16px', textAlign: 'center' }}>
+                      <input 
+                        type="checkbox" 
+                        style={{ cursor: 'pointer', width: 16, height: 16 }}
+                        checked={t.selected !== false} 
+                        onChange={e => { 
+                          const novas = [...preview.transacoes]; 
+                          novas[idx].selected = e.target.checked; 
+                          setPreview({ ...preview, transacoes: novas }); 
+                        }} 
+                      />
+                    </td>
                     <td style={{ padding: '14px 16px', fontSize: 14, color: 'var(--sm-text)', whiteSpace: 'nowrap' }}>{fmtDate(t.vencimento)}</td>
                     <td style={{ padding: '14px 16px', fontSize: 14, color: 'var(--sm-text)' }}>{t.descricao}</td>
                     <td style={{ padding: '14px 16px' }}>
@@ -955,21 +982,6 @@ function ImportExtratoForm({ familia, cartoes, contasExistentes, onImport, onClo
                       <span style={{ color: t.tipo_transacao === 'receita' ? 'var(--sm-green)' : 'var(--sm-text)' }}>
                         {t.tipo_transacao === 'receita' ? '+' : ''}{fmtMoney(t.valor)}
                       </span>
-                    </td>
-                    <td style={{ padding: '14px 16px', textAlign: 'center' }}>
-                      <button 
-                        type="button"
-                        onClick={() => {
-                          const novas = [...preview.transacoes];
-                          novas.splice(idx, 1);
-                          setPreview({ ...preview, transacoes: novas });
-                          if (novas.length === 0) setStep(1); // Go back if all removed
-                        }}
-                        style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--sm-red)', padding: 4 }}
-                        title="Remover transação"
-                      >
-                        <Trash2 size={16} />
-                      </button>
                     </td>
                   </tr>
                 ))}
