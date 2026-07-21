@@ -1326,7 +1326,7 @@ export function ComprasPage() {
   const [tab, setTab] = useState('todos');
   const [quickAdd, setQuickAdd] = useState('');
   const [dataPlanejada, setDataPlanejada] = useState('');
-  const [modal, setModal] = useState(false);
+  const [modal, setModal] = useState(null);
   const [actionError, setActionError] = useState('');
 
   if (loading) return <LoadingScreen label="Carregando lista..."/>;
@@ -1383,7 +1383,7 @@ export function ComprasPage() {
 
   return (
     <div className="fadein">
-      <SectionHeader title="Lista de compras" subtitle="Feira e supermercado em uma só lista." action={<Btn icon={Plus} onClick={()=>setModal(true)}>Item personalizado</Btn>}/>
+      <SectionHeader title="Lista de compras" subtitle="Feira e supermercado em uma só lista." action={<Btn icon={Plus} onClick={()=>setModal({})}>Item personalizado</Btn>}/>
       {actionError && <ErrorBanner message={actionError}/>}
       <div style={{ display:'flex', gap:8, marginBottom:14 }}>
         {[{k:'todos',l:'Todos',I:ShoppingCart},{k:'feira',l:'Feira',I:Apple},{k:'mercado',l:'Mercado',I:Package},{k:'historico',l:'Histórico',I:Clock}].map(t=>(
@@ -1447,7 +1447,7 @@ export function ComprasPage() {
             <div key={cat} style={{ marginBottom:10 }}>
               <div style={{ fontSize:12, fontWeight:700, color:'var(--sm-text-soft)', marginBottom:6, textTransform:'uppercase', letterSpacing:.5 }}>{cat}</div>
               <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
-                {items.map(item=>{ const a=lista.some(c=>c.produto===item&&!c.comprado); return <button key={item} disabled={a} onClick={()=>addItem(item,cat,'feira','Kg')} style={{ padding:'6px 12px', borderRadius:999, fontSize:12.5, border:'1px solid var(--sm-border)', background:a?'var(--sm-green-light)':'var(--sm-bg)', color:a?'var(--sm-green)':'var(--sm-text)', display:'flex', alignItems:'center', gap:4, cursor:a?'default':'pointer' }}>{a&&<Check size={12}/>}{item}</button>; })}
+                {items.map(item=>{ const a=lista.some(c=>c.produto===item&&!c.comprado); return <button key={item} disabled={a} onClick={()=>setModal({ produto: item, categoria: cat, tipo: 'feira', unidade: 'Kg', quantidade: 1 })} style={{ padding:'6px 12px', borderRadius:999, fontSize:12.5, border:'1px solid var(--sm-border)', background:a?'var(--sm-green-light)':'var(--sm-bg)', color:a?'var(--sm-green)':'var(--sm-text)', display:'flex', alignItems:'center', gap:4, cursor:a?'default':'pointer' }}>{a&&<Check size={12}/>}{item}</button>; })}
               </div>
             </div>
           ))}
@@ -1456,7 +1456,7 @@ export function ComprasPage() {
       {(tab==='todos'||tab==='mercado') && (
         <Card>
           <div style={{ fontWeight:600, fontSize:14, marginBottom:12 }}>Mercado — adicionar por categoria</div>
-          <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>{MERCADO_CATEGORIAS.map(cat=><button key={cat} onClick={()=>addItem(cat,cat,'mercado')} style={{ padding:'8px 14px', borderRadius:999, fontSize:12.5, border:'1px solid var(--sm-border)', background:'var(--sm-bg)', color:'var(--sm-text)', cursor:'pointer' }}>+ {cat}</button>)}</div>
+          <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>{MERCADO_CATEGORIAS.map(cat=><button key={cat} onClick={()=>setModal({ produto: '', categoria: cat, tipo: 'mercado', unidade: 'Unidade', quantidade: 1 })} style={{ padding:'8px 14px', borderRadius:999, fontSize:12.5, border:'1px solid var(--sm-border)', background:'var(--sm-bg)', color:'var(--sm-text)', cursor:'pointer' }}>+ {cat}</button>)}</div>
         </Card>
       )}
         </>
@@ -1488,7 +1488,7 @@ export function ComprasPage() {
         )}
       </div>
 
-      {modal && <Modal title="Novo item" onClose={()=>setModal(false)}><CompraForm onSave={saveNew} onClose={()=>setModal(false)}/></Modal>}
+      {modal && <Modal title="Novo item" onClose={()=>setModal(null)}><CompraForm initialData={modal} onSave={saveNew} onClose={()=>setModal(null)}/></Modal>}
     </div>
   );
 }
@@ -1512,8 +1512,15 @@ function CompraItem({ item, onToggle, onRemove, hideToggle }) {
   );
 }
 
-function CompraForm({ onSave, onClose }) {
-  const [form, setForm] = useState({ produto:'', categoria:MERCADO_CATEGORIAS[0], quantidade:1, unidade:'Unidade', tipo:'mercado', observacoes:'' });
+function CompraForm({ initialData, onSave, onClose }) {
+  const [form, setForm] = useState(initialData && Object.keys(initialData).length > 0 ? {
+    produto: initialData.produto || '',
+    categoria: initialData.categoria || MERCADO_CATEGORIAS[0],
+    quantidade: initialData.quantidade || 1,
+    unidade: initialData.unidade || 'Unidade',
+    tipo: initialData.tipo || 'mercado',
+    observacoes: initialData.observacoes || ''
+  } : { produto:'', categoria:MERCADO_CATEGORIAS[0], quantidade:1, unidade:'Unidade', tipo:'mercado', observacoes:'' });
   const set=(k,v)=>setForm(f=>({...f,[k]:v}));
   return (
     <form onSubmit={e=>{e.preventDefault();onSave({...form,quantidade:Number(form.quantidade),comprado:false});}} style={{ display:'flex', flexDirection:'column', gap:14 }}>
