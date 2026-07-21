@@ -79,7 +79,10 @@ export async function processarExtratoCSV(file, householdId, defaultResponsavel,
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
   if (apiKey) {
     genAI = new GoogleGenerativeAI(apiKey);
-    model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    model = genAI.getGenerativeModel({ 
+      model: "gemini-2.5-flash",
+      generationConfig: { responseMimeType: "application/json" }
+    });
   }
 
   const matchMap = {
