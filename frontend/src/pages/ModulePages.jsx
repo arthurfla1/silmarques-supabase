@@ -1396,8 +1396,9 @@ export function ComprasPage() {
 
   return (
     <div className="fadein">
-      <SectionHeader title="Lista de compras" subtitle="Feira e supermercado em uma só lista." action={<Btn icon={Plus} onClick={()=>setModal({})}>Item personalizado</Btn>}/>
-      {actionError && <ErrorBanner message={actionError}/>}
+      <div className="no-print">
+        <SectionHeader title="Lista de compras" subtitle="Feira e supermercado em uma só lista." action={<Btn icon={Plus} onClick={()=>setModal({})}>Item personalizado</Btn>}/>
+        {actionError && <ErrorBanner message={actionError}/>}
       <div style={{ display:'flex', gap:8, marginBottom:14 }}>
         {[{k:'todos',l:'Todos',I:ShoppingCart},{k:'feira',l:'Feira',I:Apple},{k:'mercado',l:'Mercado',I:Package},{k:'historico',l:'Histórico',I:Clock}].map(t=>(
           <button key={t.k} onClick={()=>setTab(t.k)} style={{ padding:'8px 16px', borderRadius:999, fontSize:13, fontWeight:600, border:'1px solid var(--sm-border)', background:tab===t.k?'var(--sm-red)':'transparent', color:tab===t.k?'#fff':'var(--sm-text-soft)', display:'flex', alignItems:'center', gap:6, cursor:'pointer' }}><t.I size={14}/> {t.l}</button>
@@ -1474,6 +1475,7 @@ export function ComprasPage() {
       )}
         </>
       )}
+      </div>
 
       {/* Print Layout */}
       <div className="print-only" style={{ padding: '20px 40px', color: '#111', fontFamily: '"Inter", sans-serif' }}>
@@ -1517,7 +1519,9 @@ export function ComprasPage() {
         )}
       </div>
 
-      {modal && <Modal title={modal.id ? "Editar item" : "Novo item"} onClose={()=>setModal(null)}><CompraForm initialData={modal} onSave={handleSave} onClose={()=>setModal(null)}/></Modal>}
+      <div className="no-print">
+        {modal && <Modal title={modal.id ? "Editar item" : "Novo item"} onClose={()=>setModal(null)}><CompraForm initialData={modal} onSave={handleSave} onClose={()=>setModal(null)}/></Modal>}
+      </div>
     </div>
   );
 }

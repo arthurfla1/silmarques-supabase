@@ -51,6 +51,10 @@ input,select,textarea{font-family:inherit;}
   }
 }
 
-@media print { body * { visibility: hidden; } .print-only, .print-only * { visibility: visible; } .print-only { position: absolute; left: 0; top: 0; width: 100%; } }
+@media print { 
+  .sm-sidebar, .sm-topbar, .no-print { display: none !important; }
+  .print-only { display: block !important; position: static !important; width: 100% !important; } 
+  html, body, #root, main { height: auto !important; min-height: 0 !important; overflow: visible !important; margin: 0 !important; padding: 0 !important; }
+}
 
-@media screen { .print-only { display: none; } }
+@media screen { .print-only { display: none !important; } }
