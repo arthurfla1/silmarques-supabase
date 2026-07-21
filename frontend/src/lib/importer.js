@@ -82,70 +82,99 @@ export async function processarExtratoCSV(file, householdId, defaultResponsavel,
     model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
   }
 
+  const matchMap = {
+    'agua': '💧 Água', 'energia': '⚡ Energia', 'internet': '🌐 Internet',
+    'telefone': '📱 Telefone', 'condominio': '🏢 Condomínio', 'gas': '🔥 Gás',
+    'streaming': '📺 Streaming', 'escola': '📚 Escola', 'cartoes': '💳 Cartões',
+    'financiamentos': '🏦 Financiamentos', 'aluguel': '🏠 Aluguel', 'seguro': '🛡️ Seguro Residencial',
+    'impostos': '🧾 Impostos', 'cinema': '🍿 Cinema', 'restaurantes': '🍽️ Restaurantes',
+    'padaria': '🥖 Padaria', 'shopping': '🛍️ Compras em Shopping', 'online': '📦 Compras Online',
+    'supermercado': '🛒 Supermercado', 'farmacia': '💊 Farmácia', 'transporte': '🚗 Transporte/Combustível',
+    'pet': '🐶 Pet', 'salario': '💰 Salário', 'renda_extra': '🚀 Renda Extra / Freelance',
+    'rendimentos': '📈 Rendimentos / Investimentos', 'presente': '🎁 Presente / Doação',
+    'emprestimo': '🤝 Empréstimo Recebido', 'venda': '📦 Venda de Itens',
+    'transferencia': '🔄 Transferência', 'outros': '✨ Outros'
+  };
+
+  const chavesPermitidas = Object.keys(matchMap).join(', ');
+
+  // 1. Pre-process and find matching local rules
+  const transacoesComIA = [];
   const paraInserir = [];
-  for (const t of transacoesNovas) {
-    let categoria = 'Outros';
-    let confirmada = false;
-
+  
+  for (let i = 0; i < transacoesNovas.length; i++) {
+    const t = transacoesNovas[i];
     const regra = regras?.find(r => t.descricao.toLowerCase().includes(r.palavra_chave.toLowerCase()));
+    
     if (regra) {
-      categoria = regra.categoria;
-      confirmada = true;
-    } else if (model) {
-      try {
-        const matchMap = {
-          'agua': '💧 Água', 'energia': '⚡ Energia', 'internet': '🌐 Internet',
-          'telefone': '📱 Telefone', 'condominio': '🏢 Condomínio', 'gas': '🔥 Gás',
-          'streaming': '📺 Streaming', 'escola': '📚 Escola', 'cartoes': '💳 Cartões',
-          'financiamentos': '🏦 Financiamentos', 'aluguel': '🏠 Aluguel', 'seguro': '🛡️ Seguro Residencial',
-          'impostos': '🧾 Impostos', 'cinema': '🍿 Cinema', 'restaurantes': '🍽️ Restaurantes',
-          'padaria': '🥖 Padaria', 'shopping': '🛍️ Compras em Shopping', 'online': '📦 Compras Online',
-          'supermercado': '🛒 Supermercado', 'farmacia': '💊 Farmácia', 'transporte': '🚗 Transporte/Combustível',
-          'pet': '🐶 Pet', 'salario': '💰 Salário', 'renda_extra': '🚀 Renda Extra / Freelance',
-          'rendimentos': '📈 Rendimentos / Investimentos', 'presente': '🎁 Presente / Doação',
-          'emprestimo': '🤝 Empréstimo Recebido', 'venda': '📦 Venda de Itens',
-          'transferencia': '🔄 Transferência', 'outros': '✨ Outros'
-        };
-        
-        const prompt = `Classifique a transação "${t.descricao}". Escolha apenas UMA chave desta lista: agua, energia, internet, telefone, condominio, gas, streaming, escola, cartoes, financiamentos, aluguel, seguro, impostos, cinema, restaurantes, padaria, shopping, online, supermercado, farmacia, transporte, pet, salario, renda_extra, rendimentos, presente, emprestimo, venda, transferencia, outros. Responda APENAS a chave exata em letras minúsculas.`;
-        
-        const result = await model.generateContent(prompt);
-        const resposta = result.response.text().trim().toLowerCase().replace(/[^a-z_]/g, '');
-        
-        if (matchMap[resposta]) categoria = matchMap[resposta];
-        else {
-          const achou = Object.keys(matchMap).find(k => resposta.includes(k));
-          if (achou) categoria = matchMap[achou];
-          else categoria = '✨ Outros';
-        }
-      } catch (e) {
-        console.error('Erro na IA:', e);
-        categoria = '✨ Outros';
-      }
+      paraInserir[i] = { t, categoria: regra.categoria, confirmada: true };
+    } else {
+      paraInserir[i] = { t, categoria: '✨ Outros', confirmada: false };
+      transacoesComIA.push({ index: i, descricao: t.descricao });
     }
-
-    paraInserir.push({
-      household_id: householdId,
-      descricao: t.descricao,
-      categoria: categoria,
-      valor: t.valor,
-      vencimento: t.data,
-      status: 'paga',
-      forma: 'Cartão de Crédito', 
-      responsavel: defaultResponsavel || null,
-      visibilidade: defaultVisibilidade || 'Geral',
-      cartao_id: defaultCartao || null,
-      tipo_transacao: t.tipo_transacao,
-      natureza_custo: t.tipo_transacao === 'despesa' ? 'variavel' : null,
-      hash_dedup: t.hash,
-      importacao_id: importacao?.id,
-      categoria_confirmada: confirmada,
-      origem_importacao: 'nubank_csv'
-    });
   }
 
+  // 2. Classificação em Lote com Gemini (apenas as que não tem regra local)
+  if (model && transacoesComIA.length > 0) {
+    try {
+      const prompt = `Classifique as seguintes transações bancárias.
+Escolha apenas UMA chave desta lista para cada transação: ${chavesPermitidas}.
+Retorne APENAS um array JSON válido (sem formatação markdown, sem blocos \`\`\`json), contendo APENAS strings, onde cada elemento corresponde, na mesma ordem exata, à categoria da transação correspondente.
+
+Transações:
+${transacoesComIA.map(x => `- ${x.descricao}`).join('\n')}`;
+
+      const result = await model.generateContent(prompt);
+      const text = result.response.text().trim().replace(/^```(json)?|```$/g, '').trim();
+      
+      let categoriasIA = [];
+      try {
+        categoriasIA = JSON.parse(text);
+      } catch (e) {
+        console.error('Falha ao fazer parse do JSON da IA:', text);
+      }
+
+      if (Array.isArray(categoriasIA)) {
+        for (let j = 0; j < transacoesComIA.length; j++) {
+          const idxObj = transacoesComIA[j];
+          let resposta = (categoriasIA[j] || '').toLowerCase().replace(/[^a-z_]/g, '');
+          
+          let categoriaFinal = '✨ Outros';
+          if (matchMap[resposta]) categoriaFinal = matchMap[resposta];
+          else {
+            const achou = Object.keys(matchMap).find(k => resposta.includes(k));
+            if (achou) categoriaFinal = matchMap[achou];
+          }
+          paraInserir[idxObj.index].categoria = categoriaFinal;
+        }
+      }
+    } catch (e) {
+      console.error('Erro na requisição em lote da IA:', e);
+    }
+  }
+
+  // 3. Montar array final
+  const resultados = paraInserir.map(({ t, categoria, confirmada }) => ({
+    household_id: householdId,
+    descricao: t.descricao,
+    categoria: categoria,
+    valor: t.valor,
+    vencimento: t.data,
+    status: 'paga',
+    forma: 'Cartão de Crédito', 
+    responsavel: defaultResponsavel || null,
+    visibilidade: defaultVisibilidade || 'Geral',
+    cartao_id: defaultCartao || null,
+    tipo_transacao: t.tipo_transacao,
+    natureza_custo: t.tipo_transacao === 'despesa' ? 'variavel' : null,
+    hash_dedup: t.hash,
+    importacao_id: importacao?.id,
+    categoria_confirmada: confirmada,
+    origem_importacao: 'nubank_csv'
+  }));
+
   return {
-    transacoes: paraInserir,
+    transacoes: resultados,
     duplicados: 0,
     importacao_id: importacao?.id
   };
