@@ -80,7 +80,7 @@ export async function processarExtratoCSV(file, householdId, defaultResponsavel,
   if (apiKey) {
     genAI = new GoogleGenerativeAI(apiKey);
     model = genAI.getGenerativeModel({ 
-      model: "gemini-2.5-flash",
+      model: "gemini-flash-latest",
       generationConfig: { responseMimeType: "application/json" }
     });
   }
@@ -153,7 +153,10 @@ ${transacoesComIA.map(x => `- ${x.descricao}`).join('\n')}`;
       }
     } catch (e) {
       console.error('Erro na requisição em lote da IA:', e);
+      alert('Erro na IA: ' + e.message);
     }
+  } else if (transacoesComIA.length > 0 && !model) {
+    alert("API Key do Gemini ausente! As transações ficarão como 'Outros'. Verifique se a chave foi inserida corretamente na Vercel e se o deploy foi refeito.");
   }
 
   // 3. Montar array final
