@@ -167,7 +167,7 @@ ${transacoesComIA.map(x => `- ${x.descricao}`).join('\n')}`;
     valor: t.valor,
     vencimento: t.data,
     status: 'paga',
-    forma: 'Cartão de Crédito', 
+    forma: 'Cartão', 
     responsavel: defaultResponsavel || null,
     visibilidade: defaultVisibilidade || 'Geral',
     cartao_id: defaultCartao || null,

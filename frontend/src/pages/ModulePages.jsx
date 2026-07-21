@@ -1129,7 +1129,7 @@ function ContaForm({ conta, cartoes, familia, saving, onSave, onClose }) {
   const [form, setForm] = useState(conta ? { 
     descricao: conta.descricao, categoria: conta.categoria, valor: conta.valor, 
     vencimento: conta.vencimento, responsavel: conta.responsavel || '', 
-    forma: conta.forma || 'Boleto', status: conta.status, 
+    forma: (conta.forma === 'Cartão de Crédito' ? 'Cartão' : conta.forma) || 'Boleto', status: conta.status, 
     cartao_id: conta.cartao_id || '', visibilidade: conta.visibilidade || 'Geral',
     tipo_transacao: conta.tipo_transacao || 'despesa',
     natureza_custo: conta.natureza_custo || 'variavel'
