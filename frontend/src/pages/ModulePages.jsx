@@ -1379,7 +1379,20 @@ export function ComprasPage() {
     try { const c=await comprasApi.create({produto,categoria,quantidade:1,unidade,tipo,comprado:false,observacoes:''}); setLista([...lista,c]); } catch(e){setActionError(e.message);}
   };
   const handleQuick = async (e) => { e.preventDefault(); if(!quickAdd.trim())return; await addItem(quickAdd.trim(),'Outros','mercado'); setQuickAdd(''); };
-  const saveNew = async (payload) => { try { const c=await comprasApi.create(payload); setLista([...lista,c]); setModal(false); } catch(e){setActionError(e.message);} };
+  const handleSave = async (payload) => { 
+    try { 
+      if (modal && modal.id) {
+        const u = await comprasApi.update(modal.id, payload);
+        setLista(lista.map(c => c.id === modal.id ? u : c));
+      } else {
+        const c = await comprasApi.create(payload); 
+        setLista([...lista,c]); 
+      }
+      setModal(null); 
+    } catch(e){
+      setActionError(e.message);
+    } 
+  };
 
   return (
     <div className="fadein">
@@ -1426,7 +1439,7 @@ export function ComprasPage() {
                 <button onClick={savePlanejada} style={{ background:'var(--sm-red)', color: '#fff', border:'none', borderRadius: 6, padding: '4px 8px', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>Definir</button>
               </div>
             </div>
-        {pendentes.length===0 ? <EmptyState icon={ShoppingCart} title="Lista vazia" subtitle="Tudo comprado!"/> : <div style={{ display:'flex', flexDirection:'column', gap:6 }}>{pendentes.map(c=><CompraItem key={c.id} item={c} onToggle={toggle} onRemove={remove}/>)}</div>}
+        {pendentes.length===0 ? <EmptyState icon={ShoppingCart} title="Lista vazia" subtitle="Tudo comprado!"/> : <div style={{ display:'flex', flexDirection:'column', gap:6 }}>{pendentes.map(c=><CompraItem key={c.id} item={c} onToggle={toggle} onRemove={remove} onEdit={setModal}/>)}</div>}
       </Card>
       {comprados.length>0 && (
         <Card style={{ marginBottom:16, border: '1px solid var(--sm-border)' }}>
@@ -1437,7 +1450,7 @@ export function ComprasPage() {
               <button onClick={archiveComprados} style={{ background:'var(--sm-green)', color: '#fff', border:'none', borderRadius: 6, padding: '4px 12px', fontSize:12.5, fontWeight:600, cursor:'pointer' }}>Arquivar Histórico</button>
             </div>
           </div>
-          <div style={{ display:'flex', flexDirection:'column', gap:6 }}>{comprados.map(c=><CompraItem key={c.id} item={c} onToggle={toggle} onRemove={remove}/>)}</div>
+          <div style={{ display:'flex', flexDirection:'column', gap:6 }}>{comprados.map(c=><CompraItem key={c.id} item={c} onToggle={toggle} onRemove={remove} onEdit={setModal}/>)}</div>
         </Card>
       )}
       {(tab==='todos'||tab==='feira') && (
@@ -1488,12 +1501,12 @@ export function ComprasPage() {
         )}
       </div>
 
-      {modal && <Modal title="Novo item" onClose={()=>setModal(null)}><CompraForm initialData={modal} onSave={saveNew} onClose={()=>setModal(null)}/></Modal>}
+      {modal && <Modal title={modal.id ? "Editar item" : "Novo item"} onClose={()=>setModal(null)}><CompraForm initialData={modal} onSave={handleSave} onClose={()=>setModal(null)}/></Modal>}
     </div>
   );
 }
 
-function CompraItem({ item, onToggle, onRemove, hideToggle }) {
+function CompraItem({ item, onToggle, onRemove, onEdit, hideToggle }) {
   return (
     <div style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 4px', borderBottom:'1px solid var(--sm-border)' }}>
       {!hideToggle && (
@@ -1507,6 +1520,7 @@ function CompraItem({ item, onToggle, onRemove, hideToggle }) {
       </div>
       <span style={{ fontSize:13, color:'var(--sm-text-soft)', whiteSpace:'nowrap' }}>{Number(item.quantidade)} {item.unidade}</span>
       <Badge tone={item.tipo==='feira'?'green':'blue'}>{item.tipo}</Badge>
+      {onEdit && <IconBtn icon={Edit2} onClick={()=>onEdit(item)}/>}
       <IconBtn icon={Trash2} tone="red" onClick={()=>onRemove(item.id)}/>
     </div>
   );
