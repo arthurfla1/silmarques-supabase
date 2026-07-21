@@ -1476,22 +1476,38 @@ export function ComprasPage() {
       )}
 
       {/* Print Layout */}
-      <div className="print-only">
-        <h2 style={{ borderBottom: '2px solid #000', paddingBottom: 8, marginBottom: 20 }}>
-          Lista de Compras {dataPlanejada ? `- Planejada para: ${new Date(dataPlanejada + 'T00:00:00').toLocaleDateString('pt-BR')}` : ''}
-        </h2>
+      <div className="print-only" style={{ padding: '20px 40px', color: '#111', fontFamily: '"Inter", sans-serif' }}>
+        <div style={{ borderBottom: '3px solid #e11d48', paddingBottom: 16, marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+          <div>
+            <h2 style={{ fontSize: 28, fontWeight: 800, margin: 0, letterSpacing: '-0.5px' }}>Lista de Compras</h2>
+            <div style={{ fontSize: 14, color: '#555', marginTop: 4 }}>Família SilMarques</div>
+          </div>
+          {dataPlanejada && (
+            <div style={{ textAlign: 'right', fontSize: 14, fontWeight: 600, color: '#e11d48', background: '#ffe4e6', padding: '6px 12px', borderRadius: 8, WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
+              Para o dia {new Date(dataPlanejada + 'T00:00:00').toLocaleDateString('pt-BR')}
+            </div>
+          )}
+        </div>
         
-        {Object.keys(pendentesPorCat).length === 0 ? <p>Lista vazia.</p> : (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+        {Object.keys(pendentesPorCat).length === 0 ? <p style={{ fontSize: 16, fontStyle: 'italic', color: '#666' }}>Sua lista está vazia.</p> : (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px 40px' }}>
             {Object.entries(pendentesPorCat).map(([cat, items]) => (
-              <div key={cat} style={{ breakInside: 'avoid', marginBottom: 16 }}>
-                <h3 style={{ fontSize: 16, backgroundColor: '#f0f0f0', padding: '4px 8px', marginBottom: 10, borderRadius: 4 }}>{cat}</h3>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div key={cat} style={{ breakInside: 'avoid', marginBottom: 8 }}>
+                <h3 style={{ fontSize: 14, textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 700, color: '#e11d48', borderBottom: '1px solid #ffe4e6', paddingBottom: 6, marginBottom: 12 }}>
+                  {cat}
+                </h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   {items.map(item => (
-                    <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <div style={{ width: 18, height: 18, border: '2px solid #333', borderRadius: 3 }}></div>
-                      <span style={{ fontSize: 14 }}>{item.produto}</span>
-                      <span style={{ fontSize: 12, color: '#666' }}>({item.quantidade} {item.unidade})</span>
+                    <div key={item.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, paddingBottom: 6, borderBottom: '1px dashed #eee' }}>
+                      <div style={{ width: 16, height: 16, minWidth: 16, border: '2px solid #ccc', borderRadius: 4, marginTop: 2 }}></div>
+                      <div style={{ flex: 1, lineHeight: 1.3 }}>
+                        <div style={{ fontSize: 15, fontWeight: 600 }}>{item.produto}</div>
+                        {(item.quantidade !== 1 || item.unidade !== 'Unidade' || item.observacoes) && (
+                          <div style={{ fontSize: 12, color: '#777', marginTop: 2 }}>
+                            {Number(item.quantidade)} {item.unidade} {item.observacoes && <span style={{ fontStyle: 'italic' }}>— {item.observacoes}</span>}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
