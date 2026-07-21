@@ -1329,6 +1329,13 @@ export function ComprasPage() {
   const [modal, setModal] = useState(null);
   const [actionError, setActionError] = useState('');
 
+  useEffect(() => {
+    if (lista && !dataPlanejada) {
+      const itemComData = lista.find(c => !c.arquivado && !c.comprado && c.data_planejada);
+      if (itemComData) setDataPlanejada(itemComData.data_planejada);
+    }
+  }, [lista]);
+
   if (loading) return <LoadingScreen label="Carregando lista..."/>;
   if (error) return <ErrorBanner message={error} onRetry={reload}/>;
 
