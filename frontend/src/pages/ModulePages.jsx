@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2, Search, CheckCircle2, Circle, DollarSign, Clock, AlertTriangle, Package, ShoppingCart, Apple, Check, Sparkles, Car, Wrench, Shield, FileText, Award, Users, Phone, Mail, BarChart3, Download, MapPin, Receipt, Link as LinkIcon, CreditCard, PieChart as PieChartIcon } from 'lucide-react';
 import { contasApi, cartoesApi, investimentosApi, estoqueApi, comprasApi, limpezaApi, veiculosApi, documentosApi, patrimonioApi, authApi, dashboardApi } from '../api/db';
 import { supabase } from '../lib/supabase';
