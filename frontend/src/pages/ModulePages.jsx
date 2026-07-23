@@ -1760,8 +1760,8 @@ export function VeiculosPage() {
     </div>
   );
 
-  const manutRealizadas=(veiculo?.manutencoes||[]).filter(m=>m.status!=='agendada');
-  const manutAgendadas=(veiculo?.manutencoes||[]).filter(m=>m.status==='agendada');
+  const manutRealizadas=(veiculo?.manutencoes||[]).filter(m=>m.status==='realizada');
+  const manutAgendadas=(veiculo?.manutencoes||[]).filter(m=>m.status!=='realizada');
   const totalGasto=manutRealizadas.reduce((s,m)=>s+Number(m.valor),0);
   const kmRest=veiculo?.proxima_troca_km?veiculo.proxima_troca_km-veiculo.km:null;
   const diasSeg=daysUntil(veiculo?.seguro_vencimento);
@@ -1824,17 +1824,20 @@ export function VeiculosPage() {
         )}
         {(manutAgendadas.length > 0) && (
           <Card style={{ marginBottom:16 }}>
-            <div style={{ fontWeight:600, fontSize:15, marginBottom:12, display:'flex', alignItems:'center', gap:8 }}><Clock size={18} color="var(--sm-amber)"/> Serviços Agendados</div>
+            <div style={{ fontWeight:600, fontSize:15, marginBottom:12, display:'flex', alignItems:'center', gap:8 }}><Clock size={18} color="var(--sm-amber)"/> Serviços Agendados / Em andamento</div>
             <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
               {manutAgendadas.map(m=>{
                 const nfUrl = m.nota_fiscal_path ? (m.nota_fiscal_path.startsWith('http') ? m.nota_fiscal_path : `https://zzpzvjueortfmcyfygef.supabase.co/storage/v1/object/public/arquivos/${m.nota_fiscal_path}`) : '';
                 return (
                   <div key={m.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 0', borderBottom:'1px solid var(--sm-border)', flexWrap:'wrap' }}>
-                    <button onClick={() => markManutencaoRealizada(m)} style={{ width:24, height:24, borderRadius:'50%', border:'2px solid var(--sm-border)', background:'transparent', color:'transparent', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer' }}>
+                    <button onClick={() => markManutencaoRealizada(m)} style={{ width:24, height:24, borderRadius:'50%', border:'2px solid var(--sm-border)', background:'transparent', color:'transparent', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer' }} title="Marcar como realizada">
                       <Circle size={16}/>
                     </button>
                     <div style={{ flex:'1 1 160px', minWidth:0 }}>
-                      <div style={{ fontWeight:600, fontSize:14 }}>{m.descricao}</div>
+                      <div style={{ fontWeight:600, fontSize:14, display:'flex', alignItems:'center', gap:6 }}>
+                        {m.descricao} 
+                        {m.status === 'em andamento' && <Badge tone="amber">Em andamento</Badge>}
+                      </div>
                       <div style={{ fontSize:12.5, color:'var(--sm-text-soft)' }}>{m.categoria} · {m.local||'—'} · {fmtDate(m.data)}</div>
                     </div>
                     <div style={{ fontSize:12.5, color:'var(--sm-text-soft)' }}>{m.km?.toLocaleString('pt-BR')} km</div>
@@ -1864,11 +1867,14 @@ export function VeiculosPage() {
             <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
               {manutRealizadas.map(m=>{
                 const nfUrl = m.nota_fiscal_path ? (m.nota_fiscal_path.startsWith('http') ? m.nota_fiscal_path : `https://zzpzvjueortfmcyfygef.supabase.co/storage/v1/object/public/arquivos/${m.nota_fiscal_path}`) : '';
+                const diasConcluido = daysUntil(m.data);
+                const tempoTexto = diasConcluido === 0 ? 'Hoje' : diasConcluido < 0 ? `Há ${Math.abs(diasConcluido)} dias` : `Em ${diasConcluido} dias`;
+
                 return (
                   <div key={m.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 0', borderBottom:'1px solid var(--sm-border)', flexWrap:'wrap' }}>
                     <div style={{ flex:'1 1 160px', minWidth:0 }}>
                       <div style={{ fontWeight:600, fontSize:14 }}>{m.descricao}</div>
-                      <div style={{ fontSize:12.5, color:'var(--sm-text-soft)' }}>{m.categoria} · {m.local||'—'} · {fmtDate(m.data)}</div>
+                      <div style={{ fontSize:12.5, color:'var(--sm-text-soft)' }}>{m.categoria} · {m.local||'—'} · {fmtDate(m.data)} <span style={{ color:'var(--sm-green)', fontWeight:600, marginLeft:4 }}>({tempoTexto})</span></div>
                     </div>
                     <div style={{ fontSize:12.5, color:'var(--sm-text-soft)' }}>{m.km?.toLocaleString('pt-BR')} km</div>
                     {m.nota_fiscal_path && (
@@ -1933,7 +1939,7 @@ function ManutForm({ initialData, saving, onSave, onClose }) {
   return (
     <form onSubmit={e=>{e.preventDefault();onSave({...form,valor:Number(form.valor)||0,km:Number(form.km)});}} style={{ display:'flex', flexDirection:'column', gap:14 }}>
       <div className="grid-2">
-        <Field label="Situação"><Select value={form.status} onChange={e => set('status', e.target.value)}><option value="realizada">Realizada</option><option value="agendada">Agendada</option></Select></Field>
+        <Field label="Situação"><Select value={form.status} onChange={e => set('status', e.target.value)}><option value="realizada">Realizada</option><option value="em andamento">Em andamento</option><option value="agendada">Agendada</option></Select></Field>
         <Field label="Categoria"><SelectWithCustom options={VEICULO_CATEGORIAS} value={form.categoria} onChange={val => set('categoria', val)} /></Field>
       </div>
       <Field label="Data (Agendada ou Realizada)"><Input required type="date" value={form.data} onChange={e=>set('data',e.target.value)}/></Field>
