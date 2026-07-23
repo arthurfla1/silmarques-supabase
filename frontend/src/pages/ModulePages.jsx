@@ -1807,7 +1807,7 @@ export function VeiculosPage() {
           {diasLic!==null && <AlertRow icon={FileText} label="Licenciamento" value={diasLic<0?`Vencido há ${Math.abs(diasLic)} dias`:`Vence em ${diasLic} dias (${fmtDate(veiculo.licenciamento_vencimento)})`} tone={diasLic<0?'red':diasLic<=30?'amber':'green'}/>}
           {manutAgendadas.map(m => {
             const d = daysUntil(m.data);
-            return <AlertRow key={m.id} icon={Clock} label={`Agendado: ${m.descricao}`} value={d<0?`Atrasado há ${Math.abs(d)} dias (${fmtDate(m.data)})`:`Em ${d} dias (${fmtDate(m.data)})`} tone={d<0?'red':d<=7?'amber':'green'}/>;
+            return <AlertRow key={m.id} icon={Clock} label={`Agendado: ${m.titulo}`} value={d<0?`Atrasado há ${Math.abs(d)} dias (${fmtDate(m.data)})`:`Em ${d} dias (${fmtDate(m.data)})`} tone={d<0?'red':d<=7?'amber':'green'}/>;
           })}
           {kmRest===null && diasSeg===null && diasLic===null && manutAgendadas.length===0 && <div style={{ fontSize:13, color:'var(--sm-text-soft)' }}>Nenhum alerta para exibir.</div>}
         </Card>
@@ -1835,10 +1835,11 @@ export function VeiculosPage() {
                     </button>
                     <div style={{ flex:'1 1 160px', minWidth:0 }}>
                       <div style={{ fontWeight:600, fontSize:14, display:'flex', alignItems:'center', gap:6 }}>
-                        {m.descricao} 
+                        {m.titulo} 
                         {m.status === 'em andamento' && <Badge tone="amber">Em andamento</Badge>}
                       </div>
                       <div style={{ fontSize:12.5, color:'var(--sm-text-soft)' }}>{m.categoria} · {m.local||'—'} · {fmtDate(m.data)}</div>
+                      {m.descricao && <div style={{ fontSize:13, color:'var(--sm-text-soft)', marginTop:6 }}>{m.descricao}</div>}
                     </div>
                     <div style={{ fontSize:12.5, color:'var(--sm-text-soft)' }}>{m.km?.toLocaleString('pt-BR')} km</div>
                     {m.nota_fiscal_path && (
@@ -1861,7 +1862,7 @@ export function VeiculosPage() {
         <Card>
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
             <div style={{ fontWeight:600, fontSize:15 }}>Histórico de manutenções</div>
-            <Btn icon={Plus} onClick={()=>setModalManut({ data:todayStr(),categoria:VEICULO_CATEGORIAS[0],descricao:'',local:'',valor:'',km:veiculo.km,status:'realizada',anexos:[],nota_fiscal_path:'' })}>Registrar</Btn>
+            <Btn icon={Plus} onClick={()=>setModalManut({ data:todayStr(),categoria:VEICULO_CATEGORIAS[0],titulo:'',descricao:'',local:'',valor:'',km:veiculo.km,status:'realizada',anexos:[],nota_fiscal_path:'' })}>Registrar</Btn>
           </div>
           {manutRealizadas.length===0 ? <EmptyState icon={Wrench} title="Nenhuma manutenção registrada"/> : (
             <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
@@ -1873,8 +1874,9 @@ export function VeiculosPage() {
                 return (
                   <div key={m.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 0', borderBottom:'1px solid var(--sm-border)', flexWrap:'wrap' }}>
                     <div style={{ flex:'1 1 160px', minWidth:0 }}>
-                      <div style={{ fontWeight:600, fontSize:14 }}>{m.descricao}</div>
+                      <div style={{ fontWeight:600, fontSize:14 }}>{m.titulo}</div>
                       <div style={{ fontSize:12.5, color:'var(--sm-text-soft)' }}>{m.categoria} · {m.local||'—'} · {fmtDate(m.data)} <span style={{ color:'var(--sm-green)', fontWeight:600, marginLeft:4 }}>({tempoTexto})</span></div>
+                      {m.descricao && <div style={{ fontSize:13, color:'var(--sm-text-soft)', marginTop:6 }}>{m.descricao}</div>}
                     </div>
                     <div style={{ fontSize:12.5, color:'var(--sm-text-soft)' }}>{m.km?.toLocaleString('pt-BR')} km</div>
                     {m.nota_fiscal_path && (
@@ -1934,7 +1936,7 @@ function VeiculoForm({ veiculo, saving, onSave, onClose }) {
 }
 
 function ManutForm({ initialData, saving, onSave, onClose }) {
-  const [form,setForm]=useState({ data:initialData?.data||todayStr(),categoria:initialData?.categoria||VEICULO_CATEGORIAS[0],descricao:initialData?.descricao||'',local:initialData?.local||'',valor:initialData?.valor||'',km:initialData?.km||'',status:initialData?.status||'realizada',anexos:initialData?.anexos||[],nota_fiscal_path:initialData?.nota_fiscal_path||'' });
+  const [form,setForm]=useState({ data:initialData?.data||todayStr(),categoria:initialData?.categoria||VEICULO_CATEGORIAS[0],titulo:initialData?.titulo||'',descricao:initialData?.descricao||'',local:initialData?.local||'',valor:initialData?.valor||'',km:initialData?.km||'',status:initialData?.status||'realizada',anexos:initialData?.anexos||[],nota_fiscal_path:initialData?.nota_fiscal_path||'' });
   const set=(k,v)=>setForm(f=>({...f,[k]:v}));
   return (
     <form onSubmit={e=>{e.preventDefault();onSave({...form,valor:Number(form.valor)||0,km:Number(form.km)});}} style={{ display:'flex', flexDirection:'column', gap:14 }}>
@@ -1943,7 +1945,8 @@ function ManutForm({ initialData, saving, onSave, onClose }) {
         <Field label="Categoria"><SelectWithCustom options={VEICULO_CATEGORIAS} value={form.categoria} onChange={val => set('categoria', val)} /></Field>
       </div>
       <Field label="Data (Agendada ou Realizada)"><Input required type="date" value={form.data} onChange={e=>set('data',e.target.value)}/></Field>
-      <Field label="Descrição"><Input required value={form.descricao} onChange={e=>set('descricao',e.target.value)} placeholder="Ex: Troca de óleo"/></Field>
+      <Field label="Título"><Input required value={form.titulo} onChange={e=>set('titulo',e.target.value)} placeholder="Ex: Troca de óleo e filtros"/></Field>
+      <Field label="Descrição detalhada (Opcional)"><TextArea value={form.descricao} onChange={e=>set('descricao',e.target.value)} placeholder="Mais detalhes sobre o serviço..."/></Field>
       <div className="grid-2">
         <Field label="Oficina / local"><Input value={form.local} onChange={e=>set('local',e.target.value)}/></Field>
         <Field label="Valor (R$)"><Input type="number" step="0.01" min="0" value={form.valor} onChange={e=>set('valor',e.target.value)}/></Field>
