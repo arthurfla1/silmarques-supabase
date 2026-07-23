@@ -10,6 +10,7 @@ import { InvestimentosView } from './InvestimentosView';
 import { DashboardContasView } from './DashboardContasView';
 
 import { Card, SectionHeader, Btn, Input, Select, SelectWithCustom, Field, Modal, TextArea, Badge, IconBtn, EmptyState, Metric, ProgressBar, Avatar, LoadingScreen, ErrorBanner, FileUploader, MultiFileUploader } from '../components/ui';
+import { generateVehicleReport } from '../lib/pdfGenerator';
 import { CONTA_CATEGORIAS, RECEITA_CATEGORIAS, ESTOQUE_CATEGORIAS, ESTOQUE_LOCAIS, LIMPEZA_AMBIENTES, LIMPEZA_FREQ, LIMPEZA_PRIORIDADES, VEICULO_CATEGORIAS, DOC_CATEGORIAS, BEM_CATEGORIAS, COMPRA_UNIDADES, MERCADO_CATEGORIAS, PERMISSOES, FEIRA_ITENS, CAR_BRANDS, CARTOES_BANCOS, VISIBILIDADE_OPCOES, fmtMoney, fmtDate, todayStr, addDays, daysUntil, downloadCSV } from '../lib/constants';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, CartesianGrid, LineChart, Line } from 'recharts';
 
@@ -1708,6 +1709,7 @@ export function VeiculosPage() {
   const [modalManut, setModalManut] = useState(null);
   const [saving, setSaving] = useState(false);
   const [actionError, setActionError] = useState('');
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   if (loading) return <LoadingScreen label="Carregando veículos..."/>;
   if (error) return <ErrorBanner message={error} onRetry={reload}/>;
@@ -1860,10 +1862,25 @@ export function VeiculosPage() {
           </Card>
         )}
         <Card>
-          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12, flexWrap:'wrap', gap:8 }}>
             <div style={{ fontWeight:600, fontSize:15 }}>Histórico de manutenções</div>
-            <Btn icon={Plus} onClick={()=>setModalManut({ data:todayStr(),categoria:VEICULO_CATEGORIAS[0],titulo:'',descricao:'',local:'',valor:'',km:veiculo.km,status:'realizada',anexos:[],nota_fiscal_path:'' })}>Registrar</Btn>
+            <div style={{ display:'flex', gap:8, flexWrap:'wrap' }} className="no-print">
+              <Btn icon={Download} tone="secondary" onClick={async () => {
+                try {
+                  setIsGeneratingPdf(true);
+                  await generateVehicleReport('pdf-veiculo-historico', veiculo, manutRealizadas);
+                } catch(e) {
+                  setActionError('Erro ao gerar PDF: ' + e.message);
+                } finally {
+                  setIsGeneratingPdf(false);
+                }
+              }} disabled={isGeneratingPdf || manutRealizadas.length === 0}>
+                {isGeneratingPdf ? 'Gerando...' : 'Baixar Relatório (PDF)'}
+              </Btn>
+              <Btn icon={Plus} onClick={()=>setModalManut({ data:todayStr(),categoria:VEICULO_CATEGORIAS[0],titulo:'',descricao:'',local:'',valor:'',km:veiculo.km,status:'realizada',anexos:[],nota_fiscal_path:'' })}>Registrar</Btn>
+            </div>
           </div>
+          <div id="pdf-veiculo-historico" style={{ padding: '4px' }}>
           {manutRealizadas.length===0 ? <EmptyState icon={Wrench} title="Nenhuma manutenção registrada"/> : (
             <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
               {manutRealizadas.map(m=>{
@@ -1895,6 +1912,7 @@ export function VeiculosPage() {
               })}
             </div>
           )}
+          </div>
         </Card>
       </>}
       {modalVeiculo!==null && <Modal title={modalVeiculo.id?'Editar veículo':'Novo veículo'} onClose={()=>setModalVeiculo(null)}><VeiculoForm veiculo={modalVeiculo.id?modalVeiculo:null} saving={saving} onSave={saveVeiculo} onClose={()=>setModalVeiculo(null)}/></Modal>}
