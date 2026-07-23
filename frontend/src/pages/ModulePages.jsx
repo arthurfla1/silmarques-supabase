@@ -1824,6 +1824,7 @@ export function VeiculosPage() {
             ))}
           </Card>
         )}
+        <div id="pdf-veiculo-historico">
         {(manutAgendadas.length > 0) && (
           <Card style={{ marginBottom:16 }}>
             <div style={{ fontWeight:600, fontSize:15, marginBottom:12, display:'flex', alignItems:'center', gap:8 }}><Clock size={18} color="var(--sm-amber)"/> Serviços Agendados / Em andamento</div>
@@ -1868,19 +1869,19 @@ export function VeiculosPage() {
               <Btn icon={Download} tone="secondary" onClick={async () => {
                 try {
                   setIsGeneratingPdf(true);
-                  await generateVehicleReport('pdf-veiculo-historico', veiculo, manutRealizadas);
+                  await generateVehicleReport('pdf-veiculo-historico', veiculo, veiculo.manutencoes);
                 } catch(e) {
                   setActionError('Erro ao gerar PDF: ' + e.message);
                 } finally {
                   setIsGeneratingPdf(false);
                 }
-              }} disabled={isGeneratingPdf || manutRealizadas.length === 0}>
+              }} disabled={isGeneratingPdf || (veiculo?.manutencoes?.length || 0) === 0}>
                 {isGeneratingPdf ? 'Gerando...' : 'Baixar Relatório (PDF)'}
               </Btn>
               <Btn icon={Plus} onClick={()=>setModalManut({ data:todayStr(),categoria:VEICULO_CATEGORIAS[0],titulo:'',descricao:'',local:'',valor:'',km:veiculo.km,status:'realizada',anexos:[],nota_fiscal_path:'' })}>Registrar</Btn>
             </div>
           </div>
-          <div id="pdf-veiculo-historico" style={{ padding: '4px' }}>
+          <div style={{ padding: '4px' }}>
           {manutRealizadas.length===0 ? <EmptyState icon={Wrench} title="Nenhuma manutenção registrada"/> : (
             <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
               {manutRealizadas.map(m=>{
@@ -1914,6 +1915,7 @@ export function VeiculosPage() {
           )}
           </div>
         </Card>
+        </div>
       </>}
       {modalVeiculo!==null && <Modal title={modalVeiculo.id?'Editar veículo':'Novo veículo'} onClose={()=>setModalVeiculo(null)}><VeiculoForm veiculo={modalVeiculo.id?modalVeiculo:null} saving={saving} onSave={saveVeiculo} onClose={()=>setModalVeiculo(null)}/></Modal>}
       {modalManut && veiculo && <Modal title={modalManut.id ? "Editar registro" : "Registrar serviço"} onClose={()=>setModalManut(null)}><ManutForm initialData={modalManut} saving={saving} onSave={saveManutencao} onClose={()=>setModalManut(null)}/></Modal>}
