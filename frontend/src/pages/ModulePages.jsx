@@ -1933,7 +1933,7 @@ function ManutForm({ initialData, saving, onSave, onClose }) {
   return (
     <form onSubmit={e=>{e.preventDefault();onSave({...form,valor:Number(form.valor)||0,km:Number(form.km)});}} style={{ display:'flex', flexDirection:'column', gap:14 }}>
       <div className="grid-2">
-        <Field label="Situação"><SelectWithCustom options={['realizada', 'agendada']} value={form.status} onChange={val => set('status', val)} /></Field>
+        <Field label="Situação"><Select value={form.status} onChange={e => set('status', e.target.value)}><option value="realizada">Realizada</option><option value="agendada">Agendada</option></Select></Field>
         <Field label="Categoria"><SelectWithCustom options={VEICULO_CATEGORIAS} value={form.categoria} onChange={val => set('categoria', val)} /></Field>
       </div>
       <Field label="Data (Agendada ou Realizada)"><Input required type="date" value={form.data} onChange={e=>set('data',e.target.value)}/></Field>
