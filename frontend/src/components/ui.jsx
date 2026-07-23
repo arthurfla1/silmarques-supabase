@@ -308,3 +308,90 @@ export function FileUploader({ folder, value, onUploadComplete, onRemove, label 
     </div>
   );
 }
+
+export function MultiFileUploader({ folder, values = [], onChange, label = 'Anexar arquivos', accept = '*' }) {
+  const [uploading, setUploading] = React.useState(false);
+  const [error, setE] = React.useState('');
+
+  const handleFileChange = async (e) => {
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+    setUploading(true); setE('');
+    try {
+      const newValues = [...values];
+      for (const file of files) {
+        const res = await uploadFile(folder, file);
+        newValues.push(res.path);
+      }
+      onChange(newValues);
+    } catch (err) {
+      setE(err.message || 'Erro ao fazer upload.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleRemove = async (pathToRemove) => {
+    setUploading(true); setE('');
+    try {
+      await deleteFile(pathToRemove);
+      onChange(values.filter(v => v !== pathToRemove));
+    } catch (err) {
+      onChange(values.filter(v => v !== pathToRemove));
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const bucketUrl = `https://zzpzvjueortfmcyfygef.supabase.co/storage/v1/object/public/arquivos/`;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      {label && <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--sm-text-soft)' }}>{label}</span>}
+      {values.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {values.map((val, idx) => {
+            const isImage = val.match(/\.(jpeg|jpg|gif|png|webp)/i);
+            const fileUrl = val.startsWith('http') ? val : `${bucketUrl}${val}`;
+            return (
+              <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 8, border: '1px solid var(--sm-border)', borderRadius: 10, background: 'var(--sm-bg)' }}>
+                {isImage ? (
+                  <img src={fileUrl} alt="Anexo" style={{ width: 36, height: 36, borderRadius: 6, objectFit: 'cover', border: '1px solid var(--sm-border)' }} />
+                ) : (
+                  <div style={{ width: 36, height: 36, borderRadius: 6, background: 'var(--sm-red-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--sm-red)' }}>
+                    <FileText size={16} />
+                  </div>
+                )}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--sm-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {val.split('/').pop()}
+                  </div>
+                  <a href={fileUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11.5, color: 'var(--sm-red)', textDecoration: 'none', fontWeight: 600 }}>Visualizar arquivo</a>
+                </div>
+                <button type="button" onClick={() => handleRemove(val)} disabled={uploading} style={{ width: 28, height: 28, borderRadius: 6, border: '1px solid var(--sm-border)', background: 'transparent', color: 'var(--sm-red)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                  <X size={14} />
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, height: 60, border: '2px dashed var(--sm-border)', borderRadius: 12, background: 'var(--sm-surface)', cursor: uploading ? 'not-allowed' : 'pointer', transition: 'border-color 0.15s' }}>
+        <input type="file" multiple accept={accept} onChange={handleFileChange} disabled={uploading} style={{ display: 'none' }} />
+        {uploading ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--sm-text-soft)' }}>
+            <div style={{ width: 14, height: 14, border: '2px solid var(--sm-border)', borderTopColor: 'var(--sm-red)', borderRadius: '50%', animation: 'spin .7s linear infinite' }} />
+            Enviando arquivo(s)...
+          </div>
+        ) : (
+          <>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 600, color: 'var(--sm-text)' }}>
+              <Upload size={16} /> Adicionar anexo(s)
+            </div>
+            {error && <div style={{ fontSize: 12, color: 'var(--sm-red)', fontWeight: 600, marginTop: -4 }}>{error}</div>}
+          </>
+        )}
+      </label>
+    </div>
+  );
+}

@@ -245,6 +245,15 @@ export const veiculosApi = {
       await supabase.from('manutencoes').insert({ ...payload, veiculo_id: veiculoId }).select().single()
     );
   },
+  async updateManutencao(manutencaoId, payload) {
+    const clean = { ...payload };
+    delete clean.id;
+    delete clean.veiculo_id;
+    delete clean.created_at;
+    return check(
+      await supabase.from('manutencoes').update(clean).eq('id', manutencaoId).select().single()
+    );
+  },
   async removeManutencao(manutencaoId) {
     check(await supabase.from('manutencoes').delete().eq('id', manutencaoId));
   },

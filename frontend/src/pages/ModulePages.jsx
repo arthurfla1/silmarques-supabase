@@ -9,7 +9,7 @@ import { useAuth } from '../context/AuthContext';
 import { InvestimentosView } from './InvestimentosView';
 import { DashboardContasView } from './DashboardContasView';
 
-import { Card, SectionHeader, Btn, Input, Select, SelectWithCustom, Field, Modal, TextArea, Badge, IconBtn, EmptyState, Metric, ProgressBar, Avatar, LoadingScreen, ErrorBanner, FileUploader } from '../components/ui';
+import { Card, SectionHeader, Btn, Input, Select, SelectWithCustom, Field, Modal, TextArea, Badge, IconBtn, EmptyState, Metric, ProgressBar, Avatar, LoadingScreen, ErrorBanner, FileUploader, MultiFileUploader } from '../components/ui';
 import { CONTA_CATEGORIAS, RECEITA_CATEGORIAS, ESTOQUE_CATEGORIAS, ESTOQUE_LOCAIS, LIMPEZA_AMBIENTES, LIMPEZA_FREQ, LIMPEZA_PRIORIDADES, VEICULO_CATEGORIAS, DOC_CATEGORIAS, BEM_CATEGORIAS, COMPRA_UNIDADES, MERCADO_CATEGORIAS, PERMISSOES, FEIRA_ITENS, CAR_BRANDS, CARTOES_BANCOS, VISIBILIDADE_OPCOES, fmtMoney, fmtDate, todayStr, addDays, daysUntil, downloadCSV } from '../lib/constants';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, CartesianGrid, LineChart, Line } from 'recharts';
 
@@ -1705,7 +1705,7 @@ export function VeiculosPage() {
   const { data:veiculos, setData, loading, error, reload } = useApiList(veiculosApi.list.bind(veiculosApi));
   const [selectedId, setSelectedId] = useState(null);
   const [modalVeiculo, setModalVeiculo] = useState(null);
-  const [modalManut, setModalManut] = useState(false);
+  const [modalManut, setModalManut] = useState(null);
   const [saving, setSaving] = useState(false);
   const [actionError, setActionError] = useState('');
 
@@ -1727,13 +1727,25 @@ export function VeiculosPage() {
     try { await veiculosApi.remove(id); const rest=veiculos.filter(v=>v.id!==id); setData(rest); if(selectedId===id)setSelectedId(rest[0]?.id||null); } catch(e){setActionError(e.message);}
   };
 
-  const addManutencao = async (payload) => {
+  const saveManutencao = async (payload) => {
     setSaving(true);
     try {
-      const m = await veiculosApi.addManutencao(veiculo.id, payload);
-      setData(veiculos.map(v=>v.id===veiculo.id?{...v,manutencoes:[m,...(v.manutencoes||[])],km:Math.max(v.km,payload.km)}:v));
-      setModalManut(false);
+      if (modalManut?.id) {
+        const m = await veiculosApi.updateManutencao(modalManut.id, payload);
+        setData(veiculos.map(v=>v.id===veiculo.id?{...v,manutencoes:v.manutencoes.map(x=>x.id===m.id?m:x),km:Math.max(v.km,payload.km)}:v));
+      } else {
+        const m = await veiculosApi.addManutencao(veiculo.id, payload);
+        setData(veiculos.map(v=>v.id===veiculo.id?{...v,manutencoes:[m,...(v.manutencoes||[])],km:Math.max(v.km,payload.km)}:v));
+      }
+      setModalManut(null);
     } catch(e){setActionError(e.message);} finally{setSaving(false);}
+  };
+
+  const markManutencaoRealizada = async (m) => {
+    try {
+      const u = await veiculosApi.updateManutencao(m.id, { status: 'realizada' });
+      setData(veiculos.map(v=>v.id===veiculo.id?{...v,manutencoes:v.manutencoes.map(x=>x.id===u.id?u:x)}:v));
+    } catch(e){setActionError(e.message);}
   };
 
   const removeManut = async (mid) => {
@@ -1748,11 +1760,13 @@ export function VeiculosPage() {
     </div>
   );
 
-  const totalGasto=(veiculo?.manutencoes||[]).reduce((s,m)=>s+Number(m.valor),0);
+  const manutRealizadas=(veiculo?.manutencoes||[]).filter(m=>m.status!=='agendada');
+  const manutAgendadas=(veiculo?.manutencoes||[]).filter(m=>m.status==='agendada');
+  const totalGasto=manutRealizadas.reduce((s,m)=>s+Number(m.valor),0);
   const kmRest=veiculo?.proxima_troca_km?veiculo.proxima_troca_km-veiculo.km:null;
   const diasSeg=daysUntil(veiculo?.seguro_vencimento);
   const diasLic=daysUntil(veiculo?.licenciamento_vencimento);
-  const gastosPorCat=VEICULO_CATEGORIAS.map(cat=>({ categoria:cat, valor:(veiculo?.manutencoes||[]).filter(m=>m.categoria===cat).reduce((s,m)=>s+Number(m.valor),0) })).filter(c=>c.valor>0).sort((a,b)=>b.valor-a.valor);
+  const gastosPorCat=VEICULO_CATEGORIAS.map(cat=>({ categoria:cat, valor:manutRealizadas.filter(m=>m.categoria===cat).reduce((s,m)=>s+Number(m.valor),0) })).filter(c=>c.valor>0).sort((a,b)=>b.valor-a.valor);
 
   const AlertRow=({icon:Icon,label,value,tone})=>{
     const c={red:'var(--sm-red)',amber:'var(--sm-amber)',green:'var(--sm-green)'}[tone];
@@ -1791,6 +1805,11 @@ export function VeiculosPage() {
           {kmRest!==null && <AlertRow icon={Wrench} label="Troca de óleo" value={kmRest<=0?'Atrasada — agendar agora':`Faltam ${kmRest.toLocaleString('pt-BR')} km · ${fmtDate(veiculo.proxima_troca_data)}`} tone={kmRest<=1000?'amber':'green'}/>}
           {diasSeg!==null && <AlertRow icon={Shield} label={`Seguro (${veiculo.seguradora||'—'})`} value={diasSeg<0?`Vencido há ${Math.abs(diasSeg)} dias`:`Vence em ${diasSeg} dias (${fmtDate(veiculo.seguro_vencimento)})`} tone={diasSeg<0?'red':diasSeg<=30?'amber':'green'}/>}
           {diasLic!==null && <AlertRow icon={FileText} label="Licenciamento" value={diasLic<0?`Vencido há ${Math.abs(diasLic)} dias`:`Vence em ${diasLic} dias (${fmtDate(veiculo.licenciamento_vencimento)})`} tone={diasLic<0?'red':diasLic<=30?'amber':'green'}/>}
+          {manutAgendadas.map(m => {
+            const d = daysUntil(m.data);
+            return <AlertRow key={m.id} icon={Clock} label={`Agendado: ${m.descricao}`} value={d<0?`Atrasado há ${Math.abs(d)} dias (${fmtDate(m.data)})`:`Em ${d} dias (${fmtDate(m.data)})`} tone={d<0?'red':d<=7?'amber':'green'}/>;
+          })}
+          {kmRest===null && diasSeg===null && diasLic===null && manutAgendadas.length===0 && <div style={{ fontSize:13, color:'var(--sm-text-soft)' }}>Nenhum alerta para exibir.</div>}
         </Card>
         {gastosPorCat.length>0 && (
           <Card style={{ marginBottom:16 }}>
@@ -1803,14 +1822,47 @@ export function VeiculosPage() {
             ))}
           </Card>
         )}
+        {(manutAgendadas.length > 0) && (
+          <Card style={{ marginBottom:16 }}>
+            <div style={{ fontWeight:600, fontSize:15, marginBottom:12, display:'flex', alignItems:'center', gap:8 }}><Clock size={18} color="var(--sm-amber)"/> Serviços Agendados</div>
+            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              {manutAgendadas.map(m=>{
+                const nfUrl = m.nota_fiscal_path ? (m.nota_fiscal_path.startsWith('http') ? m.nota_fiscal_path : `https://zzpzvjueortfmcyfygef.supabase.co/storage/v1/object/public/arquivos/${m.nota_fiscal_path}`) : '';
+                return (
+                  <div key={m.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 0', borderBottom:'1px solid var(--sm-border)', flexWrap:'wrap' }}>
+                    <button onClick={() => markManutencaoRealizada(m)} style={{ width:24, height:24, borderRadius:'50%', border:'2px solid var(--sm-border)', background:'transparent', color:'transparent', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer' }}>
+                      <Circle size={16}/>
+                    </button>
+                    <div style={{ flex:'1 1 160px', minWidth:0 }}>
+                      <div style={{ fontWeight:600, fontSize:14 }}>{m.descricao}</div>
+                      <div style={{ fontSize:12.5, color:'var(--sm-text-soft)' }}>{m.categoria} · {m.local||'—'} · {fmtDate(m.data)}</div>
+                    </div>
+                    <div style={{ fontSize:12.5, color:'var(--sm-text-soft)' }}>{m.km?.toLocaleString('pt-BR')} km</div>
+                    {m.nota_fiscal_path && (
+                      <a href={nfUrl} target="_blank" rel="noopener noreferrer" style={{ display:'inline-flex', textDecoration:'none' }}><Badge tone="blue">Anexo</Badge></a>
+                    )}
+                    {(m.anexos && m.anexos.length > 0) && (
+                      <Badge tone="blue">{m.anexos.length} Anexo{m.anexos.length>1?'s':''}</Badge>
+                    )}
+                    <div style={{ fontWeight:700, fontFamily:'Outfit' }}>{Number(m.valor)>0?fmtMoney(m.valor):'—'}</div>
+                    <div style={{ display:'flex', gap:6 }}>
+                      <IconBtn icon={Edit2} onClick={()=>setModalManut(m)}/>
+                      <IconBtn icon={Trash2} tone="red" onClick={()=>removeManut(m.id)}/>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+        )}
         <Card>
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
             <div style={{ fontWeight:600, fontSize:15 }}>Histórico de manutenções</div>
-            <Btn icon={Plus} onClick={()=>setModalManut(true)}>Registrar</Btn>
+            <Btn icon={Plus} onClick={()=>setModalManut({ data:todayStr(),categoria:VEICULO_CATEGORIAS[0],descricao:'',local:'',valor:'',km:veiculo.km,status:'realizada',anexos:[],nota_fiscal_path:'' })}>Registrar</Btn>
           </div>
-          {(veiculo.manutencoes||[]).length===0 ? <EmptyState icon={Wrench} title="Nenhuma manutenção registrada"/> : (
+          {manutRealizadas.length===0 ? <EmptyState icon={Wrench} title="Nenhuma manutenção registrada"/> : (
             <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-              {(veiculo.manutencoes||[]).map(m=>{
+              {manutRealizadas.map(m=>{
                 const nfUrl = m.nota_fiscal_path ? (m.nota_fiscal_path.startsWith('http') ? m.nota_fiscal_path : `https://zzpzvjueortfmcyfygef.supabase.co/storage/v1/object/public/arquivos/${m.nota_fiscal_path}`) : '';
                 return (
                   <div key={m.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 0', borderBottom:'1px solid var(--sm-border)', flexWrap:'wrap' }}>
@@ -1819,15 +1871,17 @@ export function VeiculosPage() {
                       <div style={{ fontSize:12.5, color:'var(--sm-text-soft)' }}>{m.categoria} · {m.local||'—'} · {fmtDate(m.data)}</div>
                     </div>
                     <div style={{ fontSize:12.5, color:'var(--sm-text-soft)' }}>{m.km?.toLocaleString('pt-BR')} km</div>
-                    {m.nota_fiscal_path ? (
-                      <a href={nfUrl} target="_blank" rel="noopener noreferrer" style={{ display:'inline-flex', textDecoration:'none' }}>
-                        <Badge tone="blue">NF Anexo</Badge>
-                      </a>
-                    ) : (
-                      m.nota_fiscal && <Badge tone="neutral">NF</Badge>
+                    {m.nota_fiscal_path && (
+                      <a href={nfUrl} target="_blank" rel="noopener noreferrer" style={{ display:'inline-flex', textDecoration:'none' }}><Badge tone="blue">NF / Anexo antigo</Badge></a>
+                    )}
+                    {(m.anexos && m.anexos.length > 0) && (
+                      <Badge tone="blue">{m.anexos.length} Anexo{m.anexos.length>1?'s':''}</Badge>
                     )}
                     <div style={{ fontWeight:700, fontFamily:'Outfit' }}>{Number(m.valor)>0?fmtMoney(m.valor):'Grátis'}</div>
-                    <IconBtn icon={Trash2} tone="red" onClick={()=>removeManut(m.id)}/>
+                    <div style={{ display:'flex', gap:6 }}>
+                      <IconBtn icon={Edit2} onClick={()=>setModalManut(m)}/>
+                      <IconBtn icon={Trash2} tone="red" onClick={()=>removeManut(m.id)}/>
+                    </div>
                   </div>
                 );
               })}
@@ -1836,7 +1890,7 @@ export function VeiculosPage() {
         </Card>
       </>}
       {modalVeiculo!==null && <Modal title={modalVeiculo.id?'Editar veículo':'Novo veículo'} onClose={()=>setModalVeiculo(null)}><VeiculoForm veiculo={modalVeiculo.id?modalVeiculo:null} saving={saving} onSave={saveVeiculo} onClose={()=>setModalVeiculo(null)}/></Modal>}
-      {modalManut && veiculo && <Modal title="Registrar manutenção" onClose={()=>setModalManut(false)}><ManutForm veiculo={veiculo} saving={saving} onSave={addManutencao} onClose={()=>setModalManut(false)}/></Modal>}
+      {modalManut && veiculo && <Modal title={modalManut.id ? "Editar registro" : "Registrar serviço"} onClose={()=>setModalManut(null)}><ManutForm initialData={modalManut} saving={saving} onSave={saveManutencao} onClose={()=>setModalManut(null)}/></Modal>}
     </div>
   );
 }
@@ -1873,23 +1927,24 @@ function VeiculoForm({ veiculo, saving, onSave, onClose }) {
   );
 }
 
-function ManutForm({ veiculo, saving, onSave, onClose }) {
-  const [form,setForm]=useState({ data:todayStr(),categoria:VEICULO_CATEGORIAS[0],descricao:'',local:'',valor:'',km:veiculo.km,nota_fiscal:false,nota_fiscal_path:'' });
+function ManutForm({ initialData, saving, onSave, onClose }) {
+  const [form,setForm]=useState({ data:initialData?.data||todayStr(),categoria:initialData?.categoria||VEICULO_CATEGORIAS[0],descricao:initialData?.descricao||'',local:initialData?.local||'',valor:initialData?.valor||'',km:initialData?.km||'',status:initialData?.status||'realizada',anexos:initialData?.anexos||[],nota_fiscal_path:initialData?.nota_fiscal_path||'' });
   const set=(k,v)=>setForm(f=>({...f,[k]:v}));
   return (
     <form onSubmit={e=>{e.preventDefault();onSave({...form,valor:Number(form.valor)||0,km:Number(form.km)});}} style={{ display:'flex', flexDirection:'column', gap:14 }}>
       <div className="grid-2">
-        <Field label="Data"><Input required type="date" value={form.data} onChange={e=>set('data',e.target.value)}/></Field>
+        <Field label="Situação"><SelectWithCustom options={['realizada', 'agendada']} value={form.status} onChange={val => set('status', val)} /></Field>
         <Field label="Categoria"><SelectWithCustom options={VEICULO_CATEGORIAS} value={form.categoria} onChange={val => set('categoria', val)} /></Field>
       </div>
+      <Field label="Data (Agendada ou Realizada)"><Input required type="date" value={form.data} onChange={e=>set('data',e.target.value)}/></Field>
       <Field label="Descrição"><Input required value={form.descricao} onChange={e=>set('descricao',e.target.value)} placeholder="Ex: Troca de óleo"/></Field>
       <div className="grid-2">
         <Field label="Oficina / local"><Input value={form.local} onChange={e=>set('local',e.target.value)}/></Field>
         <Field label="Valor (R$)"><Input type="number" step="0.01" min="0" value={form.valor} onChange={e=>set('valor',e.target.value)}/></Field>
       </div>
-      <Field label="Quilometragem"><Input required type="number" min="0" value={form.km} onChange={e=>set('km',e.target.value)}/></Field>
-      <FileUploader folder="manutencoes" value={form.nota_fiscal_path} onUploadComplete={({ path }) => setForm(f => ({ ...f, nota_fiscal_path: path, nota_fiscal: true }))} onRemove={() => setForm(f => ({ ...f, nota_fiscal_path: '', nota_fiscal: false }))} label="Nota fiscal (anexo de recibo)" />
-      <div style={{ display:'flex', justifyContent:'flex-end', gap:10, marginTop:6 }}><Btn variant="secondary" onClick={onClose}>Cancelar</Btn><Btn type="submit" disabled={saving}>{saving?'Salvando...':'Registrar'}</Btn></div>
+      <Field label="Quilometragem (Atual ou Alvo)"><Input required type="number" min="0" value={form.km} onChange={e=>set('km',e.target.value)}/></Field>
+      <MultiFileUploader folder="manutencoes" values={form.anexos} onChange={vals => set('anexos', vals)} label="Anexos (Opcional - NF, OS, Fotos)" accept="*/*" />
+      <div style={{ display:'flex', justifyContent:'flex-end', gap:10, marginTop:6 }}><Btn variant="secondary" onClick={onClose}>Cancelar</Btn><Btn type="submit" disabled={saving}>{saving?'Salvando...':'Salvar'}</Btn></div>
     </form>
   );
 }
