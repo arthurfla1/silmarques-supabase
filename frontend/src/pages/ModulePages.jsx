@@ -10,7 +10,7 @@ import { InvestimentosView } from './InvestimentosView';
 import { DashboardContasView } from './DashboardContasView';
 
 import { Card, SectionHeader, Btn, Input, Select, SelectWithCustom, Field, Modal, TextArea, Badge, IconBtn, EmptyState, Metric, ProgressBar, Avatar, LoadingScreen, ErrorBanner, FileUploader, MultiFileUploader } from '../components/ui';
-import { generateVehicleReport } from '../lib/pdfGenerator';
+import { generateVehicleReport, generateOSReport } from '../lib/pdfGenerator';
 import { CONTA_CATEGORIAS, RECEITA_CATEGORIAS, ESTOQUE_CATEGORIAS, ESTOQUE_LOCAIS, LIMPEZA_AMBIENTES, LIMPEZA_FREQ, LIMPEZA_PRIORIDADES, VEICULO_CATEGORIAS, DOC_CATEGORIAS, BEM_CATEGORIAS, COMPRA_UNIDADES, MERCADO_CATEGORIAS, PERMISSOES, FEIRA_ITENS, CAR_BRANDS, CARTOES_BANCOS, VISIBILIDADE_OPCOES, fmtMoney, fmtDate, todayStr, addDays, daysUntil, downloadCSV } from '../lib/constants';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, CartesianGrid, LineChart, Line } from 'recharts';
 
@@ -1729,6 +1729,15 @@ export function VeiculosPage() {
     try { await veiculosApi.remove(id); const rest=veiculos.filter(v=>v.id!==id); setData(rest); if(selectedId===id)setSelectedId(rest[0]?.id||null); } catch(e){setActionError(e.message);}
   };
 
+  const handleDownloadOS = async (m) => {
+    try {
+      setActionError('');
+      await generateOSReport(veiculo, m);
+    } catch(e) {
+      setActionError('Erro ao gerar OS: ' + e.message);
+    }
+  };
+
   const saveManutencao = async (payload) => {
     setSaving(true);
     try {
@@ -1853,6 +1862,7 @@ export function VeiculosPage() {
                     )}
                     <div style={{ fontWeight:700, fontFamily:'Outfit' }}>{Number(m.valor)>0?fmtMoney(m.valor):'—'}</div>
                     <div style={{ display:'flex', gap:6 }}>
+                      <IconBtn icon={Download} onClick={()=>handleDownloadOS(m)} title="Baixar Ordem de Serviço (PDF)"/>
                       <IconBtn icon={Edit2} onClick={()=>setModalManut(m)}/>
                       <IconBtn icon={Trash2} tone="red" onClick={()=>removeManut(m.id)}/>
                     </div>
@@ -1905,6 +1915,7 @@ export function VeiculosPage() {
                     )}
                     <div style={{ fontWeight:700, fontFamily:'Outfit' }}>{Number(m.valor)>0?fmtMoney(m.valor):'Grátis'}</div>
                     <div style={{ display:'flex', gap:6 }}>
+                      <IconBtn icon={Download} onClick={()=>handleDownloadOS(m)} title="Baixar Ordem de Serviço (PDF)"/>
                       <IconBtn icon={Edit2} onClick={()=>setModalManut(m)}/>
                       <IconBtn icon={Trash2} tone="red" onClick={()=>removeManut(m.id)}/>
                     </div>
